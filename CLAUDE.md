@@ -1,126 +1,136 @@
 # RutinaApp
 
-App web de una sola página, offline-first, para entrenar en casa siguiendo una rotación
-A-B-C. Es una herramienta de sesión (se usa con el celular en la mano durante el
-entreno), no un documento estático.
+Offline-first, single-page web app for training at home following an A-B-C rotation.
+It's a session tool (used phone-in-hand during the workout), not a static document.
 
-**Fuente de verdad del producto:** `docs/HANDOFF.md`. Contiene el contexto completo del
-usuario, todas las reglas de negocio, los datos del programa y los criterios de
-aceptación. Leelo antes de tocar cualquier lógica de negocio — este CLAUDE.md resume
-las decisiones técnicas y el estado del proyecto, no reemplaza al handoff.
+**Product source of truth:** `docs/HANDOFF.md`. It contains the full user context, all
+business rules, the program data, and the acceptance criteria. Read it before touching
+any business logic — this CLAUDE.md summarizes technical decisions and project status,
+it does not replace the handoff.
 
-## Estado actual
+**Language split:** code, file names, types, comments and technical docs (this file,
+README, HANDOFF) are in English. All user-facing UI text — exercise names, buttons,
+messages, the PWA name — stays in **Spanish**, because the end user trains in Spanish.
+Don't translate strings inside `src/data/program.ts` or any rendered copy.
 
-Scaffold inicial. Existen el toolchain, los tipos, los datos del programa y un store de
-ajustes. **Todavía no están construidas las pantallas ni la lógica de negocio** (rotación,
-calculadora de discos, doble progresión, temporizador, historial). Ver "Próximos pasos".
+## Current status
+
+Initial scaffold. The toolchain, types, program data, and a settings store exist.
+**Screens and business logic are not built yet** (rotation, plate calculator, double
+progression, rest timer, history). See "Next steps".
 
 ## Stack
 
-- **React 19 + Vite + TypeScript**, plantilla `react-ts`.
-- **Tailwind CSS v4** vía `@tailwindcss/vite` (sin `tailwind.config.js`; todo el theming
-  va en `src/index.css` con `@import "tailwindcss"` y, si hace falta extender el theme,
-  bloques `@theme`).
-- **Zustand** para estado global, con el middleware `persist` para guardar en
-  `localStorage`. Cada store persistido usa su propio `name` con prefijo `rutina:`
-  (ej. `rutina:ajustes`) para poder inspeccionar/exportar por separado si hace falta.
-- **vite-plugin-pwa** (`registerType: 'autoUpdate'`) para que la app sea instalable y
-  funcione 100% offline salvo los links a YouTube, que abren fuera de la app.
-- **Sin backend, sin cuentas, sin red** — toda la persistencia es local al dispositivo.
-  Export/import a JSON es el único mecanismo para mover datos entre dispositivos y es
-  imprescindible en v1, no una mejora futura.
+- **React 19 + Vite + TypeScript**, `react-ts` template.
+- **Tailwind CSS v4** via `@tailwindcss/vite` (no `tailwind.config.js`; all theming lives
+  in `src/index.css` via `@import "tailwindcss"` and, if the theme needs extending,
+  `@theme` blocks).
+- **Zustand** for global state, with the `persist` middleware to save to `localStorage`.
+  Each persisted store uses its own `name` with a `routine-app:` prefix (e.g.
+  `routine-app:settings`) so state can be inspected/exported independently later.
+- **vite-plugin-pwa** (`registerType: 'autoUpdate'`) so the app is installable and works
+  100% offline except for YouTube links, which open outside the app.
+- **No backend, no accounts, no network** — all persistence is local to the device.
+  Export/import to JSON is the only way to move data between devices and is required in
+  v1, not a future nice-to-have.
 
-## Comandos
+## Commands
 
 ```bash
-npm run dev       # servidor local con HMR
+npm run dev       # local dev server with HMR
 npm run build     # tsc -b && vite build → dist/
-npm run preview   # sirve dist/ localmente para probar el build de producción
+npm run preview   # serves dist/ locally to test the production build
 npm run lint       # oxlint
 ```
 
-## Estructura
+## Structure
 
 ```
 src/
-  types/programa.ts   # tipos del programa de entrenamiento (Ejercicio, DiaRutina, Equipo…)
-  data/programa.ts     # datos reales del programa (equipo, calentamiento, días A/B/C).
-                        # NO improvisar estos números — ver sección 9 del HANDOFF.
-  store/                # stores de Zustand, uno por dominio (ajustes, rotación, historial…)
-  App.tsx               # shell de la app (placeholder por ahora)
-docs/HANDOFF.md         # spec funcional completa
-.github/workflows/deploy.yml  # build + deploy a GitHub Pages en push a main
+  types/program.ts    # training program types (Exercise, WorkoutDay, Equipment…)
+  data/program.ts       # actual program data (equipment, warmup, days A/B/C).
+                         # Field names are English, string VALUES stay in Spanish
+                         # (they're UI content). Do NOT improvise these numbers —
+                         # see HANDOFF section 9.
+  store/                 # Zustand stores, one per domain (settings, rotation, history…)
+  App.tsx                # app shell (placeholder for now)
+docs/HANDOFF.md           # full functional spec
+.github/workflows/deploy.yml  # build + deploy to GitHub Pages on push to main
 ```
 
-A medida que se construyan features, cada pantalla principal (Inicio, Sesión, Historial,
-Ajustes) va en `src/screens/`, y lógica pura sin JSX (calculadora de discos, rotación,
-doble progresión) va en `src/lib/` para poder testearla sin renderizar componentes.
+As features get built, each main screen (Home, Session, History, Settings) goes in
+`src/screens/`, and pure logic without JSX (plate calculator, rotation, double
+progression) goes in `src/lib/` so it can be tested without rendering components.
 
-## Despliegue
+## Deployment
 
-GitHub Pages, servido en `/RutinaApp/` (`base` en `vite.config.ts` debe coincidir con el
-nombre del repo). El workflow `.github/workflows/deploy.yml` builda y publica en cada
-push a `main`. La primera vez hay que habilitar Pages en el repo con **Source: GitHub
-Actions** (Settings → Pages).
+GitHub Pages, served under `/RutinaApp/` (`base` in `vite.config.ts` must match the repo
+name). `.github/workflows/deploy.yml` builds and publishes on every push to `main`. The
+first time, enable Pages on the repo with **Source: GitHub Actions** (Settings → Pages).
 
-Importante: si el repo cambia de nombre, actualizar `base` en `vite.config.ts` y
-`start_url`/`scope` en el manifest PWA dentro de `vite.config.ts` — si no coinciden, la
-app instalada rompe.
+Important: if the repo is ever renamed, update `base` in `vite.config.ts` and
+`start_url`/`scope` in the PWA manifest (also in `vite.config.ts`) — if they don't match,
+the installed app breaks.
 
-## Reglas de negocio clave (resumen — el detalle completo vive en el HANDOFF)
+## Key business rules (summary — full detail lives in the HANDOFF)
 
-- **Rotación A→B→C→A…** no atada a fechas. Si el usuario falta un día, al volver le toca
-  lo mismo que le tocaba, sin "recuperar" ni marcar racha rota. Domingo sugiere descanso
-  pero no bloquea entrenar.
-- **Doble progresión**: subir 1 rep por serie por semana; al llegar al límite alto de reps
-  en todas las series, sugerir +2.5 kg (con botón Aceptar/Todavía no), nunca aplicarlo solo.
-- **Calculadora de discos**: dado un peso objetivo dice qué discos poner; dado el
-  inventario, qué pesos son armables. Nunca sugerir una carga no armable con
-  4×1.25 + 6×2.5 + 4×5 kg, ni cargas asimétricas entre lados/extremos. El inventario de
-  discos es compartido entre las 3 barras dentro de una misma sesión — hay que detectar
-  conflictos y ordenar ejercicios para minimizar cambios de discos.
-- **Sesión mínima (20 min)**: primeros 3 ejercicios, 2 series c/u, cuenta como sesión
-  completa. Es el mecanismo antideserción principal — tiene que ser fácil de encontrar.
-- **Deload** cada 6-8 semanas: 60% de la carga habitual (redondeado a lo armable) por 6
-  sesiones.
-- **Tono de la UI**: nunca culpar al usuario por faltar. Nada de rachas rotas en rojo. A
-  lo sumo un empujón neutro tipo "Llevas 3 días sin entrenar. La sesión mínima son 20 min."
-- **Fuera de alcance v1**: cuentas, sync, backend, conteo de calorías, peso corporal,
-  medidas o fotos de progreso.
+- **A→B→C→A… rotation**, not tied to calendar dates. If the user misses a day, whatever
+  was due comes back next time — no "catching up," no broken-streak messaging. Sunday
+  suggests rest but doesn't block training.
+- **Double progression**: add 1 rep per set per week; once the user hits the top of the
+  rep range on every set, suggest +2.5 kg (with an Accept/Not yet button), never apply it
+  automatically.
+- **Plate calculator**: given a target weight, says which plates to load; given the
+  inventory, says which weights are achievable. Never suggest a load that isn't buildable
+  from 4×1.25 + 6×2.5 + 4×5 kg, and never an asymmetric load between sides/ends. The plate
+  inventory is shared across all 3 bars within one session — detect conflicts and order
+  exercises to minimize plate changes.
+- **Minimum session (20 min)**: first 3 exercises, 2 sets each, still counts as a
+  completed session for the rotation and history. This is the main anti-dropout
+  mechanism — it has to be easy to find, never hidden.
+- **Deload** every 6-8 weeks: 60% of the usual load (rounded to the nearest buildable
+  weight) for 6 sessions.
+- **UI tone**: never blame the user for missing a day. No red broken streaks. At most a
+  neutral nudge like "3 days since your last session. The minimum session is 20 min."
+  (in Spanish in the actual UI).
+- **Out of scope for v1**: accounts, sync, backend, calorie tracking, body weight,
+  measurements, or progress photos.
 
-## Decisiones ya tomadas (no re-preguntar)
+## Decisions already made (don't re-ask)
 
-- Stack: React + Vite + Zustand + Tailwind (elegido por el usuario).
-- PWA instalable: sí.
+- Stack: React + Vite + Zustand + Tailwind (chosen by the user).
+- Installable PWA: yes.
 - Hosting: GitHub Pages.
-- Persistencia: `localStorage` vía Zustand `persist` (alcanza para el volumen de datos de
-  esta app; si algún store crece mucho, evaluar IndexedDB solo para ese store).
+- Persistence: `localStorage` via Zustand `persist` (enough for this app's data volume;
+  if a given store grows a lot, consider IndexedDB just for that store).
+- Codebase language: English for code/files/docs, Spanish for all UI-facing content.
 
-## Qué se puede decidir sin preguntar vs. qué sí requiere confirmar
+## What can be decided without asking vs. what needs confirmation
 
-Ver sección 9 del HANDOFF. Resumen: estructura de archivos, diseño visual, nombres
-internos y forma de las gráficas son libres. **Cualquier cambio al programa en sí**
-(ejercicios, series, reps, cargas iniciales, la rotación) se confirma con el usuario
-antes de tocarlo — esos números están calculados para el inventario real.
+See HANDOFF section 9. Summary: file structure, visual design, internal names, and chart
+shapes are free to decide. **Any change to the program itself** (exercises, sets, reps,
+initial loads, the rotation) must be confirmed with the user before touching it — those
+numbers are calculated for the real equipment inventory.
 
-## Próximos pasos (build de v1)
+## Next steps (building v1)
 
-En orden sugerido, porque cada uno depende del anterior:
+Suggested order, since each step depends on the previous one:
 
-1. `src/lib/discos.ts` — calculadora de discos pura (sin UI), con tests. Es el feature
-   más riesgoso de la app; conviene tenerlo sólido antes de construir pantallas encima.
-2. `src/store/useHistorialStore.ts` + `useRotacionStore.ts` — persistencia de sesiones
-   registradas y puntero de rotación A/B/C.
-3. `src/lib/progresion.ts` — doble progresión, comparando contra la última sesión.
-4. Pantallas: Inicio → Calentamiento → Modo sesión (un ejercicio a la vez) → Estiramiento
-   → Resumen. Modo sesión es la pantalla central: un toque para confirmar serie con la
-   sugerencia precargada.
-5. Temporizador de descanso (sonido/vibración, saltable).
-6. Historial con gráfica simple por ejercicio.
-7. Ajustes: pesos de barras, inventario de discos, sonido, resetear rotación.
-8. Exportar/importar JSON del estado completo.
-9. Techo de carga (sección 7 del HANDOFF): variantes de progresión cuando un ejercicio
-   lleva 3 semanas en el peso máximo armable.
+1. `src/lib/plates.ts` — pure plate calculator (no UI), with tests. It's the riskiest
+   feature in the app; worth getting solid before building screens on top of it.
+2. `src/store/useHistoryStore.ts` + `useRotationStore.ts` — persistence for logged
+   sessions and the A/B/C rotation pointer.
+3. `src/lib/progression.ts` — double progression, comparing against the last logged
+   session.
+4. Screens: Home → Warmup → Session mode (one exercise at a time) → Cooldown → Summary.
+   Session mode is the central screen: one tap to confirm a set with the suggestion
+   preloaded.
+5. Rest timer (sound/vibration, skippable).
+6. History with a simple chart per exercise.
+7. Settings: barbell/dumbbell weights, plate inventory, sound, reset rotation.
+8. Export/import the full state as JSON.
+9. Load ceiling (HANDOFF section 7): alternate progression variants once an exercise has
+   spent 3 weeks at the max buildable weight.
 
-Antes de dar por terminada una feature, repasar los criterios de aceptación (sección 8
-del HANDOFF) — son la definición de "hecho" de este proyecto.
+Before calling a feature done, check it against the acceptance criteria (HANDOFF section
+8) — that's this project's definition of "done."

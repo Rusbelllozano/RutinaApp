@@ -29,7 +29,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Todo lo de la app es local; solo los links a YouTube salen a red.
+        // Everything in the app is local; only the YouTube links go out to the network.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
       },
     }),

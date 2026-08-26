@@ -1,13 +1,16 @@
 # Rutina
 
-App web offline-first para entrenar en casa siguiendo una rotación A-B-C, con
-calculadora de discos, doble progresión automática e historial. Pensada para
-usarse con el celular durante la sesión.
+Offline-first web app for training at home following an A-B-C rotation, with a plate
+calculator, automatic double progression, and history. Built to be used on a phone
+during the workout session.
 
-Detalle funcional completo: [`docs/HANDOFF.md`](docs/HANDOFF.md).
-Contexto técnico y estado del proyecto: [`CLAUDE.md`](CLAUDE.md).
+Full functional spec: [`docs/HANDOFF.md`](docs/HANDOFF.md).
+Technical context and project status: [`CLAUDE.md`](CLAUDE.md).
 
-## Desarrollo
+The codebase (files, code, docs) is in English; the app's UI is in Spanish for the end
+user — see the "Language split" note in `CLAUDE.md`.
+
+## Development
 
 ```bash
 npm install
@@ -17,9 +20,9 @@ npm run dev
 ## Build
 
 ```bash
-npm run build     # genera dist/
-npm run preview   # sirve dist/ localmente
+npm run build     # generates dist/
+npm run preview   # serves dist/ locally
 ```
 
-Se despliega automáticamente a GitHub Pages en cada push a `main`
+Deploys automatically to GitHub Pages on every push to `main`
 (`.github/workflows/deploy.yml`).

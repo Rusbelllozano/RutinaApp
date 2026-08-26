@@ -12,7 +12,7 @@ body,
 
 body {
   margin: 0;
-  /* Evita el "pull to refresh" y el zoom por doble tap durante la sesión de entrenamiento. */
+  /* Prevents pull-to-refresh and double-tap zoom during the workout session. */
   overscroll-behavior-y: contain;
   touch-action: manipulation;
 }

@@ -1,168 +1,209 @@
-# HANDOFF — App de rutina de entrenamiento (archivo vivo)
+# HANDOFF — Home training routine app (living document)
 
-> **Para Claude Code.** Este documento contiene todo el contexto, los datos y los requisitos.
-> No hace falta consultar otras fuentes. Adjunto: `rutina-6-dias.md` (el programa en texto plano).
+> **For Claude Code.** This document contains all the context, data, and requirements.
+> No other sources are needed.
+>
+> **Language note:** this document, the code, file names, and all technical docs are in
+> English. The values that populate the program (exercise names, cues, alternatives,
+> checklist items) and everything the app renders are kept in **Spanish** — that's the
+> UI language, because the end user trains in Spanish. See `CLAUDE.md`'s "Language
+> split" section.
 
 ---
 
-## 1. Contexto del usuario
+## 1. User context
 
-- **Objetivo:** ganar músculo + perder grasa (recomposición).
-- **Nivel:** principiante, menos de 1 año entrenando.
-- **Frecuencia:** lunes a sábado, domingo descanso. Necesita tolerar fallar 1 día sin romper el plan.
-- **Duración por sesión:** 35–55 min, calentamiento y estiramiento incluidos.
-- **Lugar:** casa. Sin banco, sin barra de dominadas. Solo colchoneta y peso libre.
-- **Idioma de toda la interfaz: español.**
-- **Uso principal: teléfono**, con las manos ocupadas y a veces sudadas. Botones grandes, poco scroll, cero formularios largos.
+- **Goal:** build muscle + lose fat (body recomposition).
+- **Level:** beginner, less than 1 year of training.
+- **Frequency:** Monday to Saturday, Sunday rest. Needs to tolerate missing 1 day without
+  breaking the plan.
+- **Session length:** 35–55 min, warmup and cooldown included.
+- **Location:** home. No bench, no pull-up bar. Just a mat and free weights.
+- **Interface language: Spanish**, for all UI text.
+- **Primary device: phone**, hands often busy or sweaty. Big buttons, little scrolling,
+  zero long forms.
 
-### Equipo exacto (esto es un límite duro del diseño)
+### Exact equipment (this is a hard design constraint)
 
-| Ítem | Cantidad | Peso unitario |
+| Item | Quantity | Unit weight |
 |---|---|---|
-| Barra armable 1.69 m | 1 | ~6 kg (configurable) |
-| Barra mancuerna 35 cm | 2 | ~1.5 kg c/u (configurable) |
-| Seguros roscados | 6 | ~0.2 kg c/u |
-| Disco 1.25 kg | 4 | 1.25 kg |
-| Disco 2.5 kg | 6 | 2.5 kg |
-| Disco 5 kg | 4 | 5 kg |
+| Assemblable barbell, 1.69 m | 1 | ~6 kg (configurable) |
+| Dumbbell handle, 35 cm | 2 | ~1.5 kg each |
+| Threaded collars | 6 | ~0.2 kg each |
+| 1.25 kg plate | 4 | 1.25 kg |
+| 2.5 kg plate | 6 | 2.5 kg |
+| 5 kg plate | 4 | 5 kg |
 
-**Total de discos: 40 kg.** Los pesos de barras son estimados: deben ser editables en ajustes.
-
----
-
-## 2. Qué construir
-
-Una **app web de una sola página, offline-first**, que el usuario abre en el celular durante el entrenamiento. Es un "archivo vivo": registra cada serie, recuerda el historial y decide qué toca hacer hoy.
-
-No es un documento estático ni un PDF. Es una herramienta de sesión.
-
-### Stack sugerido (abierto a criterio)
-
-- React + Vite + Tailwind, o HTML/JS vanilla en un solo archivo. Prioridad: que arranque sin servidor y sin build complicado.
-- **Persistencia: `localStorage`** (o IndexedDB si el volumen lo justifica). Sin backend, sin cuentas, sin red.
-- Debe funcionar 100% sin conexión salvo los enlaces de video, que abren YouTube externamente.
-- Incluir **exportar/importar JSON** para que el usuario no pierda el historial al cambiar de dispositivo o limpiar el navegador. Esto no es opcional.
+**Total plates: 40 kg.** Bar weights are estimates and must be editable in settings.
 
 ---
 
-## 3. Reglas de negocio
+## 2. What to build
 
-### 3.1 Rotación A–B–C (el corazón de la app)
+A **single-page, offline-first web app**, opened on the phone during the workout. It's a
+"living file": it logs every set, remembers history, and decides what's due today.
 
-Los días **no** están atados a la semana. Existe una cola cíclica `A → B → C → A → B → C → …`.
+It is not a static document or a PDF. It's a session tool.
 
-- Al abrir la app, muestra **el siguiente día de la rotación**, sea la fecha que sea.
-- Si el usuario falla un día, no pasa nada: al día siguiente le toca lo mismo que le tocaba. Nada se "pierde" y no hay que recuperar sesiones.
-- Domingo: la app sugiere descanso, pero **no bloquea** entrenar si el usuario quiere.
-- Nunca mostrar mensajes de culpa por días perdidos. Nada de rachas rotas en rojo, nada de "fallaste 2 días". Si acaso, un empujón neutro: "Llevas 3 días sin entrenar. La sesión mínima son 20 minutos."
+### Suggested stack (open to judgment)
 
-### 3.2 Doble progresión
+- React + Vite + Tailwind, or vanilla HTML/JS in a single file. Priority: it must start
+  with no server and no complicated build.
+- **Persistence: `localStorage`** (or IndexedDB if volume justifies it). No backend, no
+  accounts, no network.
+- Must work 100% offline except for video links, which open YouTube externally.
+- Include **JSON export/import** so the user doesn't lose history when switching devices
+  or clearing the browser. This is not optional.
 
-Es la única regla de progresión del programa.
+---
 
-1. Cada ejercicio tiene un rango de reps (ej. 8–12).
-2. El usuario intenta sumar 1 rep por serie cada semana.
-3. Cuando completa **el límite alto en todas las series** (ej. 4×12), la app sugiere subir **+2.5 kg** y volver al límite bajo.
-4. La sugerencia es una **propuesta, no una orden**: botón "Aceptar" / "Todavía no".
+## 3. Business rules
 
-La app debe detectar esto automáticamente comparando con la última sesión registrada de ese ejercicio.
+### 3.1 A–B–C rotation (the heart of the app)
 
-### 3.3 Salto mínimo
+Days are **not** tied to the week. There's a cyclic queue `A → B → C → A → B → C → …`.
 
-- Barra: 2.5 kg (1.25 kg por lado).
-- Mancuerna: 2.5 kg (1.25 kg por extremo).
-- **Nunca sugerir cargas asimétricas.** Si un peso no es armable con el inventario, no existe.
+- On open, show **the next day in the rotation**, whatever the date is.
+- If the user misses a day, nothing happens: the next day, they get whatever was due.
+  Nothing is "lost" and there's no session to make up.
+- Sunday: the app suggests rest, but **doesn't block** training if the user wants to.
+- Never show guilt messages for missed days. No broken streaks in red, no "you missed 2
+  days." At most, a neutral nudge: "3 days since your last session. The minimum session
+  is 20 minutes." (rendered in Spanish in the actual UI.)
+
+### 3.2 Double progression
+
+The program's only progression rule.
+
+1. Every exercise has a rep range (e.g. 8–12).
+2. The user tries to add 1 rep per set each week.
+3. Once they complete **the top of the range on every set** (e.g. 4×12), the app
+   suggests going up **+2.5 kg** and returning to the bottom of the range.
+4. The suggestion is a **proposal, not an order**: "Accept" / "Not yet" buttons.
+
+The app must detect this automatically by comparing against the last logged session for
+that exercise.
+
+### 3.3 Minimum jump
+
+- Barbell: 2.5 kg (1.25 kg per side).
+- Dumbbell: 2.5 kg (1.25 kg per end).
+- **Never suggest asymmetric loads.** If a weight can't be built with the inventory, it
+  doesn't exist.
 
 ### 3.4 Deload
 
-Cada 6–8 semanas de entrenamiento acumulado, la app avisa: "Semana de descarga: usa el 60% del peso habitual." Aplica el 60% redondeado a la carga armable más cercana durante 6 sesiones y luego vuelve solo.
+Every 6–8 weeks of accumulated training, the app warns: "Deload week: use 60% of your
+usual weight." Applies 60%, rounded to the nearest buildable load, for 6 sessions, then
+reverts automatically.
 
-### 3.5 Sesión mínima
+### 3.5 Minimum session
 
-Botón visible **"Versión mínima (20 min)"**: recorta la sesión a los primeros 3 ejercicios, 2 series cada uno. Cuenta como sesión completa para la rotación y el historial. Es el mecanismo antideserción más importante de la app: debe ser fácil de encontrar, no estar escondido.
-
----
-
-## 4. Calculadora de discos (feature central)
-
-Dado un peso objetivo, la app dice **exactamente qué discos poner**. Y dado el inventario, dice **qué pesos son posibles**.
-
-### Reglas
-
-- **Barra:** los discos se reparten simétricamente en 2 lados. Un peso es armable si existe una combinación del inventario tal que `lado_izq == lado_der`.
-  - Rango real: **6 kg (barra sola) a 46 kg**, en saltos de 2.5 kg.
-- **Mancuerna individual** (goblet, pullover, remo a una mano): 2 extremos simétricos.
-- **Par de mancuernas:** cada tipo de disco usado debe alcanzar para **4 extremos**. Ojo con este límite: hay 6 discos de 2.5 kg, así que solo 4 son usables en un par (1 por extremo); sobran 2.
-  - Máximo por mancuerna en un par: 1.25 + 2.5 + 5 por extremo = **19 kg c/u** (usa todos los discos).
-
-### Conflicto de inventario (importante)
-
-Los 40 kg de discos son compartidos entre las 3 barras. La app debe **detectar y avisar** cuando la configuración de un ejercicio no es armable porque los discos están en otra barra dentro de la misma sesión.
-
-Además, debe **ordenar los ejercicios de la sesión para minimizar los cambios de discos**. Este es un requisito real de usabilidad, no un adorno: cambiar discos a mitad de sesión es lo que más fricción genera.
+Visible **"Minimum version (20 min)"** button: trims the session to the first 3
+exercises, 2 sets each. Counts as a completed session for the rotation and history. This
+is the app's most important anti-dropout mechanism: it must be easy to find, never
+hidden.
 
 ---
 
-## 5. Funcionalidades
+## 4. Plate calculator (core feature)
 
-### Imprescindibles (v1)
+Given a target weight, the app says **exactly which plates to load**. Given the
+inventory, it says **which weights are achievable**.
 
-1. **Pantalla de inicio:** qué día toca (A/B/C), duración estimada, botón grande "Empezar" + botón "Versión mínima".
-2. **Calentamiento:** checklist de 7 ítems, con opción de saltar.
-3. **Modo sesión:** un ejercicio a la vez, no una tabla larga. Por cada ejercicio muestra:
-   - Nombre, series × rango de reps, carga sugerida y **qué discos poner**.
-   - Lo que hizo la última vez ("La vez pasada: 3×10 con 12 kg").
-   - Campos para registrar peso y reps de cada serie, precargados con la sugerencia — que confirmar sea **un toque**.
-   - Enlace ▶ al video de demostración.
-4. **Temporizador de descanso:** arranca solo al registrar una serie, con el tiempo prescrito (45/60/75/90 s). Sonido o vibración al terminar. Debe poder saltarse.
-5. **Estiramiento final:** checklist de 7 ítems.
-6. **Historial:** por ejercicio, peso y reps a lo largo del tiempo. Una gráfica simple de carga por ejercicio ya aporta muchísimo.
-7. **Ajustes:** peso de barras, inventario de discos, sonido on/off, resetear rotación.
-8. **Exportar / importar JSON.**
+### Rules
 
-### Deseables (v2, no bloquean)
+- **Barbell:** plates are split symmetrically across 2 sides. A weight is buildable if
+  there's an inventory combination such that `left_side == right_side`.
+  - Real range: **6 kg (bar alone) to 46 kg**, in 2.5 kg jumps.
+- **Single dumbbell** (goblet, pullover, one-arm row): 2 symmetric ends.
+- **Dumbbell pair:** each plate type used must cover **4 ends**. Watch this limit: there
+  are 6 plates of 2.5 kg, so only 4 are usable in a pair (1 per end); 2 are left over.
+  - Max per dumbbell in a pair: 1.25 + 2.5 + 5 per end = **19 kg each** (uses every
+    plate).
 
-- Marcar un ejercicio como "molesta la articulación" y que ofrezca la alternativa ya definida en las notas.
-- Notas libres por sesión.
-- Vista de volumen semanal por grupo muscular.
-- Aviso de deload automático.
+### Inventory conflict (important)
 
-### Fuera de alcance
+The 40 kg of plates are shared across all 3 bars. The app must **detect and warn** when
+an exercise's configuration isn't buildable because the plates are already on another bar
+within the same session.
 
-- Cuentas de usuario, sincronización, backend.
-- Conteo de calorías o registro de comidas. La app es solo de entrenamiento.
-- **No incluir peso corporal, medidas ni fotos de progreso en v1.** El objetivo del usuario es recomposición y el peso en báscula se mueve de forma engañosa en ese escenario; un número diario visible desmotiva más de lo que informa.
+It must also **order the session's exercises to minimize plate changes**. This is a real
+usability requirement, not decoration — changing plates mid-session is the biggest source
+of friction.
 
 ---
 
-## 6. Datos del programa
+## 5. Features
 
-Estructura sugerida. Los pesos iniciales ya están calculados para el inventario real y ordenados para minimizar cambios de discos.
+### Must-have (v1)
+
+1. **Home screen:** which day is due (A/B/C), estimated duration, big "Start" button +
+   "Minimum version" button.
+2. **Warmup:** 7-item checklist, skippable.
+3. **Session mode:** one exercise at a time, not a long table. For each exercise, show:
+   - Name, sets × rep range, suggested load and **which plates to load**.
+   - What they did last time ("Last time: 3×10 at 12 kg").
+   - Fields to log weight and reps per set, preloaded with the suggestion — confirming
+     must be **one tap**.
+   - ▶ link to a demo video.
+4. **Rest timer:** starts automatically on logging a set, with the prescribed time
+   (45/60/75/90 s). Sound or vibration when it ends. Must be skippable.
+5. **Final cooldown:** 7-item checklist.
+6. **History:** per exercise, weight and reps over time. A simple load chart per exercise
+   already adds a lot of value.
+7. **Settings:** bar weights, plate inventory, sound on/off, reset rotation.
+8. **JSON export/import.**
+
+### Nice-to-have (v2, non-blocking)
+
+- Mark an exercise as "bothers a joint" and offer the alternative already defined in the
+  notes.
+- Free-form notes per session.
+- Weekly volume view per muscle group.
+- Automatic deload warning.
+
+### Out of scope
+
+- User accounts, sync, backend.
+- Calorie counting or meal logging. The app is training-only.
+- **No body weight, measurements, or progress photos in v1.** The user's goal is
+  recomposition, and the scale moves misleadingly in that scenario; a visible daily
+  number demotivates more than it informs.
+
+---
+
+## 6. Program data
+
+Suggested structure. Field names match `src/types/program.ts` and
+`src/data/program.ts` in the codebase. **Values stay in Spanish** (exercise names, cues,
+alternatives) — they're UI content for the Spanish-speaking end user. Initial loads are
+already calculated for the real inventory and ordered to minimize plate changes.
 
 ```json
 {
-  "equipo": {
-    "barraLarga": { "pesoKg": 6, "longitudCm": 169 },
-    "barraMancuerna": { "pesoKg": 1.5, "cantidad": 2, "longitudCm": 35 },
-    "seguros": { "cantidad": 6, "pesoKg": 0.2 },
-    "discos": [
-      { "kg": 1.25, "cantidad": 4 },
-      { "kg": 2.5, "cantidad": 6 },
-      { "kg": 5, "cantidad": 4 }
+  "equipment": {
+    "barbell": { "weightKg": 6, "lengthCm": 169 },
+    "dumbbellHandle": { "weightKg": 1.5, "quantity": 2, "lengthCm": 35 },
+    "collars": { "quantity": 6, "weightKg": 0.2 },
+    "plates": [
+      { "kg": 1.25, "quantity": 4 },
+      { "kg": 2.5, "quantity": 6 },
+      { "kg": 5, "quantity": 4 }
     ]
   },
 
-  "calentamiento": [
-    { "nombre": "Marcha en el sitio o jumping jacks", "duracion": "2 min" },
-    { "nombre": "Círculos de brazos adelante/atrás", "reps": "20 c/u" },
-    { "nombre": "Gato-camello", "reps": "10" },
-    { "nombre": "Puente de glúteo sin peso", "reps": "15" },
-    { "nombre": "Sentadilla sin peso lenta", "reps": "10" },
-    { "nombre": "Rotaciones de cadera y tobillo", "reps": "10 c/lado" },
-    { "nombre": "1 serie ligera del primer ejercicio (50% del peso, 10 reps)" }
+  "warmup": [
+    { "name": "Marcha en el sitio o jumping jacks", "duration": "2 min" },
+    { "name": "Círculos de brazos adelante/atrás", "reps": "20 c/u" },
+    { "name": "Gato-camello", "reps": "10" },
+    { "name": "Puente de glúteo sin peso", "reps": "15" },
+    { "name": "Sentadilla sin peso lenta", "reps": "10" },
+    { "name": "Rotaciones de cadera y tobillo", "reps": "10 c/lado" },
+    { "name": "1 serie ligera del primer ejercicio (50% del peso, 10 reps)" }
   ],
 
-  "estiramiento": [
+  "cooldown": [
     "Pectoral en marco de puerta (30 s)",
     "Tríceps sobre la cabeza (30 s)",
     "Isquiotibiales sentado, una pierna a la vez (30 s)",
@@ -172,55 +213,55 @@ Estructura sugerida. Los pesos iniciales ya están calculados para el inventario
     "Cuello lateral (10 s por lado)"
   ],
 
-  "dias": [
+  "days": [
     {
       "id": "A",
-      "nombre": "Empuje",
-      "musculos": ["pecho", "hombros", "tríceps"],
-      "ejercicios": [
+      "name": "Empuje",
+      "muscleGroups": ["pecho", "hombros", "tríceps"],
+      "exercises": [
         {
-          "orden": 1, "nombre": "Press de pecho en piso con mancuernas",
-          "series": 4, "repMin": 8, "repMax": 12, "descansoSeg": 90,
-          "implemento": "par_mancuernas", "cargaInicialKg": 12,
-          "discos": "5 kg en cada extremo",
-          "alternativa": "Si no llegas a 8 reps limpias, baja a 9.5 kg (2.5 + 1.25 por extremo)",
+          "order": 1, "name": "Press de pecho en piso con mancuernas",
+          "sets": 4, "minReps": 8, "maxReps": 12, "restSec": 90,
+          "equipment": "dumbbell_pair", "initialWeightKg": 12,
+          "plateNote": "5 kg en cada extremo",
+          "alternative": "Si no llegas a 8 reps limpias, baja a 9.5 kg (2.5 + 1.25 por extremo)",
           "video": "https://www.youtube.com/results?search_query=press+en+piso+con+mancuernas+tecnica",
-          "nota": "Baja hasta que el codo toque el suelo, pausa 1 s, sube."
+          "note": "Baja hasta que el codo toque el suelo, pausa 1 s, sube."
         },
         {
-          "orden": 2, "nombre": "Press militar de pie con barra",
-          "series": 3, "repMin": 8, "repMax": 12, "descansoSeg": 90,
-          "implemento": "barra", "cargaInicialKg": 11, "discos": "2.5 kg por lado",
+          "order": 2, "name": "Press militar de pie con barra",
+          "sets": 3, "minReps": 8, "maxReps": 12, "restSec": 90,
+          "equipment": "barbell", "initialWeightKg": 11, "plateNote": "2.5 kg por lado",
           "video": "https://www.youtube.com/results?search_query=press+militar+de+pie+con+barra+tecnica"
         },
         {
-          "orden": 3, "nombre": "Aperturas en piso con mancuernas",
-          "series": 3, "repMin": 12, "repMax": 15, "descansoSeg": 60,
-          "implemento": "par_mancuernas", "cargaInicialKg": 7, "discos": "2.5 kg en cada extremo",
+          "order": 3, "name": "Aperturas en piso con mancuernas",
+          "sets": 3, "minReps": 12, "maxReps": 15, "restSec": 60,
+          "equipment": "dumbbell_pair", "initialWeightKg": 7, "plateNote": "2.5 kg en cada extremo",
           "video": "https://www.youtube.com/results?search_query=aperturas+en+piso+con+mancuernas"
         },
         {
-          "orden": 4, "nombre": "Elevaciones laterales",
-          "series": 3, "repMin": 12, "repMax": 15, "descansoSeg": 60,
-          "implemento": "par_mancuernas", "cargaInicialKg": 4.5, "discos": "1.25 kg en cada extremo",
-          "alternativa": "Si los hombros se van hacia arriba, usa las barras solas (~2 kg)",
+          "order": 4, "name": "Elevaciones laterales",
+          "sets": 3, "minReps": 12, "maxReps": 15, "restSec": 60,
+          "equipment": "dumbbell_pair", "initialWeightKg": 4.5, "plateNote": "1.25 kg en cada extremo",
+          "alternative": "Si los hombros se van hacia arriba, usa las barras solas (~2 kg)",
           "video": "https://www.youtube.com/results?search_query=elevaciones+laterales+con+mancuernas+tecnica"
         },
         {
-          "orden": 5, "nombre": "Extensión de tríceps sobre la cabeza",
-          "series": 3, "repMin": 10, "repMax": 12, "descansoSeg": 60,
-          "implemento": "barra", "cargaInicialKg": 11, "discos": "la misma barra, sin tocar",
-          "alternativa": "Si molesta el codo, una sola mancuerna de 9.5 kg con las dos manos",
+          "order": 5, "name": "Extensión de tríceps sobre la cabeza",
+          "sets": 3, "minReps": 10, "maxReps": 12, "restSec": 60,
+          "equipment": "barbell", "initialWeightKg": 11, "plateNote": "la misma barra, sin tocar",
+          "alternative": "Si molesta el codo, una sola mancuerna de 9.5 kg con las dos manos",
           "video": "https://www.youtube.com/results?search_query=extension+de+triceps+sobre+la+cabeza"
         },
         {
-          "orden": 6, "nombre": "Flexiones (rodillas si hace falta)",
-          "series": 2, "reps": "máximas", "descansoSeg": 60, "implemento": "peso_corporal",
+          "order": 6, "name": "Flexiones (rodillas si hace falta)",
+          "sets": 2, "reps": "máximas", "restSec": 60, "equipment": "bodyweight",
           "video": "https://www.youtube.com/results?search_query=flexiones+de+pecho+tecnica+correcta"
         },
         {
-          "orden": 7, "nombre": "Plancha frontal",
-          "series": 3, "duracionSeg": [30, 45], "descansoSeg": 45, "implemento": "peso_corporal",
+          "order": 7, "name": "Plancha frontal",
+          "sets": 3, "durationSec": [30, 45], "restSec": 45, "equipment": "bodyweight",
           "video": "https://www.youtube.com/results?search_query=plancha+abdominal+tecnica+correcta"
         }
       ]
@@ -228,49 +269,50 @@ Estructura sugerida. Los pesos iniciales ya están calculados para el inventario
 
     {
       "id": "B",
-      "nombre": "Pierna + Core",
-      "musculos": ["cuádriceps", "femorales", "glúteos", "pantorrillas", "core"],
-      "ejercicios": [
+      "name": "Pierna + Core",
+      "muscleGroups": ["cuádriceps", "femorales", "glúteos", "pantorrillas", "core"],
+      "exercises": [
         {
-          "orden": 1, "nombre": "Sentadilla con barra en la espalda",
-          "series": 4, "repMin": 10, "repMax": 12, "descansoSeg": 90,
-          "implemento": "barra", "cargaInicialKg": 21, "discos": "5 + 2.5 por lado",
-          "alternativa": "Primeras 2 semanas: 16 kg (un disco de 5 por lado). O goblet con mancuerna.",
+          "order": 1, "name": "Sentadilla con barra en la espalda",
+          "sets": 4, "minReps": 10, "maxReps": 12, "restSec": 90,
+          "equipment": "barbell", "initialWeightKg": 21, "plateNote": "5 + 2.5 por lado",
+          "alternative": "Primeras 2 semanas: 16 kg (un disco de 5 por lado). O goblet con mancuerna.",
           "video": "https://www.youtube.com/results?search_query=sentadilla+con+barra+tecnica+correcta"
         },
         {
-          "orden": 2, "nombre": "Peso muerto rumano con barra",
-          "series": 4, "repMin": 10, "repMax": 12, "descansoSeg": 90,
-          "implemento": "barra", "cargaInicialKg": 21, "discos": "la misma barra, sin tocar",
+          "order": 2, "name": "Peso muerto rumano con barra",
+          "sets": 4, "minReps": 10, "maxReps": 12, "restSec": 90,
+          "equipment": "barbell", "initialWeightKg": 21, "plateNote": "la misma barra, sin tocar",
           "video": "https://www.youtube.com/results?search_query=peso+muerto+rumano+con+barra+tecnica",
-          "nota": "Espalda recta, rodillas casi rectas. El estiramiento se siente en el femoral, no en la lumbar."
+          "note": "Espalda recta, rodillas casi rectas. El estiramiento se siente en el femoral, no en la lumbar."
         },
         {
-          "orden": 3, "nombre": "Zancadas estáticas con mancuernas",
-          "series": 3, "reps": "10 por pierna", "descansoSeg": 75,
-          "implemento": "par_mancuernas", "cargaInicialKg": 7, "discos": "2.5 kg en cada extremo",
+          "order": 3, "name": "Zancadas estáticas con mancuernas",
+          "sets": 3, "reps": "10 por pierna", "restSec": 75,
+          "equipment": "dumbbell_pair", "initialWeightKg": 7, "plateNote": "2.5 kg en cada extremo",
           "video": "https://www.youtube.com/results?search_query=zancadas+con+mancuernas+tecnica"
         },
         {
-          "orden": 4, "nombre": "Puente de glúteo con barra sobre la cadera",
-          "series": 3, "repMin": 15, "repMax": 15, "descansoSeg": 60,
-          "implemento": "barra", "cargaInicialKg": 31, "discos": "añade los 2 discos de 5 kg sobrantes: 5 + 5 + 2.5 por lado",
+          "order": 4, "name": "Puente de glúteo con barra sobre la cadera",
+          "sets": 3, "minReps": 15, "maxReps": 15, "restSec": 60,
+          "equipment": "barbell", "initialWeightKg": 31,
+          "plateNote": "añade los 2 discos de 5 kg sobrantes: 5 + 5 + 2.5 por lado",
           "video": "https://www.youtube.com/results?search_query=puente+de+gluteo+con+barra"
         },
         {
-          "orden": 5, "nombre": "Elevación de talones con barra",
-          "series": 3, "repMin": 15, "repMax": 20, "descansoSeg": 45,
-          "implemento": "barra", "cargaInicialKg": 31, "discos": "la misma barra, sin tocar",
+          "order": 5, "name": "Elevación de talones con barra",
+          "sets": 3, "minReps": 15, "maxReps": 20, "restSec": 45,
+          "equipment": "barbell", "initialWeightKg": 31, "plateNote": "la misma barra, sin tocar",
           "video": "https://www.youtube.com/results?search_query=elevacion+de+talones+con+barra+pantorrilla"
         },
         {
-          "orden": 6, "nombre": "Dead bug", "series": 3, "reps": "10 por lado",
-          "descansoSeg": 45, "implemento": "peso_corporal",
+          "order": 6, "name": "Dead bug", "sets": 3, "reps": "10 por lado",
+          "restSec": 45, "equipment": "bodyweight",
           "video": "https://www.youtube.com/results?search_query=dead+bug+ejercicio+abdominal"
         },
         {
-          "orden": 7, "nombre": "Plancha lateral", "series": 3, "duracionSeg": 25,
-          "descansoSeg": 45, "implemento": "peso_corporal",
+          "order": 7, "name": "Plancha lateral", "sets": 3, "durationSec": 25,
+          "restSec": 45, "equipment": "bodyweight",
           "video": "https://www.youtube.com/results?search_query=plancha+lateral+tecnica"
         }
       ]
@@ -278,48 +320,49 @@ Estructura sugerida. Los pesos iniciales ya están calculados para el inventario
 
     {
       "id": "C",
-      "nombre": "Tirón",
-      "musculos": ["espalda", "bíceps", "deltoides posterior"],
-      "ejercicios": [
+      "name": "Tirón",
+      "muscleGroups": ["espalda", "bíceps", "deltoides posterior"],
+      "exercises": [
         {
-          "orden": 1, "nombre": "Remo con barra inclinado (torso a 45°)",
-          "series": 4, "repMin": 8, "repMax": 12, "descansoSeg": 90,
-          "implemento": "barra", "cargaInicialKg": 21, "discos": "5 + 2.5 por lado",
+          "order": 1, "name": "Remo con barra inclinado (torso a 45°)",
+          "sets": 4, "minReps": 8, "maxReps": 12, "restSec": 90,
+          "equipment": "barbell", "initialWeightKg": 21, "plateNote": "5 + 2.5 por lado",
           "video": "https://www.youtube.com/results?search_query=remo+con+barra+inclinado+tecnica"
         },
         {
-          "orden": 2, "nombre": "Remo a una mano con mancuerna",
-          "series": 3, "reps": "10-12 por lado", "descansoSeg": 75,
-          "implemento": "mancuerna_individual", "cargaInicialKg": 11.5, "discos": "5 kg en cada extremo (los 2 que quedan libres)",
+          "order": 2, "name": "Remo a una mano con mancuerna",
+          "sets": 3, "reps": "10-12 por lado", "restSec": 75,
+          "equipment": "single_dumbbell", "initialWeightKg": 11.5,
+          "plateNote": "5 kg en cada extremo (los 2 que quedan libres)",
           "video": "https://www.youtube.com/results?search_query=remo+a+una+mano+con+mancuerna"
         },
         {
-          "orden": 3, "nombre": "Pull-over en piso con una mancuerna",
-          "series": 3, "repMin": 12, "repMax": 15, "descansoSeg": 60,
-          "implemento": "mancuerna_individual", "cargaInicialKg": 6.5, "discos": "2.5 kg en cada extremo",
+          "order": 3, "name": "Pull-over en piso con una mancuerna",
+          "sets": 3, "minReps": 12, "maxReps": 15, "restSec": 60,
+          "equipment": "single_dumbbell", "initialWeightKg": 6.5, "plateNote": "2.5 kg en cada extremo",
           "video": "https://www.youtube.com/results?search_query=pullover+con+mancuerna+en+el+piso"
         },
         {
-          "orden": 4, "nombre": "Pájaros / aperturas invertidas inclinado",
-          "series": 3, "repMin": 12, "repMax": 15, "descansoSeg": 60,
-          "implemento": "par_mancuernas", "cargaInicialKg": 4.5, "discos": "1.25 kg en cada extremo",
+          "order": 4, "name": "Pájaros / aperturas invertidas inclinado",
+          "sets": 3, "minReps": 12, "maxReps": 15, "restSec": 60,
+          "equipment": "dumbbell_pair", "initialWeightKg": 4.5, "plateNote": "1.25 kg en cada extremo",
           "video": "https://www.youtube.com/results?search_query=pajaros+con+mancuernas+deltoides+posterior"
         },
         {
-          "orden": 5, "nombre": "Curl de bíceps con barra",
-          "series": 3, "repMin": 10, "repMax": 12, "descansoSeg": 60,
-          "implemento": "barra", "cargaInicialKg": 11, "discos": "quita hasta dejar 2.5 por lado",
+          "order": 5, "name": "Curl de bíceps con barra",
+          "sets": 3, "minReps": 10, "maxReps": 12, "restSec": 60,
+          "equipment": "barbell", "initialWeightKg": 11, "plateNote": "quita hasta dejar 2.5 por lado",
           "video": "https://www.youtube.com/results?search_query=curl+de+biceps+con+barra+tecnica"
         },
         {
-          "orden": 6, "nombre": "Curl martillo con mancuernas",
-          "series": 3, "repMin": 12, "repMax": 12, "descansoSeg": 60,
-          "implemento": "par_mancuernas", "cargaInicialKg": 7, "discos": "2.5 kg en cada extremo",
+          "order": 6, "name": "Curl martillo con mancuernas",
+          "sets": 3, "minReps": 12, "maxReps": 12, "restSec": 60,
+          "equipment": "dumbbell_pair", "initialWeightKg": 7, "plateNote": "2.5 kg en cada extremo",
           "video": "https://www.youtube.com/results?search_query=curl+martillo+con+mancuernas"
         },
         {
-          "orden": 7, "nombre": "Hollow hold o bicicleta abdominal",
-          "series": 3, "duracionSeg": 30, "descansoSeg": 45, "implemento": "peso_corporal",
+          "order": 7, "name": "Hollow hold o bicicleta abdominal",
+          "sets": 3, "durationSec": 30, "restSec": 45, "equipment": "bodyweight",
           "video": "https://www.youtube.com/results?search_query=hollow+hold+ejercicio+abdominal"
         }
       ]
@@ -330,36 +373,45 @@ Estructura sugerida. Los pesos iniciales ya están calculados para el inventario
 
 ---
 
-## 7. Techo de carga y qué hacer cuando llegue
+## 7. Load ceiling and what to do when it's reached
 
-Las piernas van a topar primero: **46 kg es el máximo absoluto de la barra** y en unos meses se queda corto para sentadilla. La app no debe sugerir comprar discos. Cuando un ejercicio lleve 3 semanas en el peso máximo armable, debe ofrecer estas progresiones alternativas, en este orden:
+Legs will hit it first: **46 kg is the barbell's absolute max** and within a few months
+it'll fall short for squats. The app must not suggest buying more plates. Once an
+exercise has spent 3 weeks at its max buildable weight, it should offer these alternate
+progressions, in this order:
 
-1. **Tempo:** bajar en 3 s, pausa 1 s abajo, subir en 1 s.
-2. **Pausa** de 2 s en el punto más difícil.
-3. **Unilateral:** sentadilla búlgara, peso muerto a una pierna.
-4. **Menos descanso:** bajar a 45 s.
-5. **Más reps:** subir el rango a 15–20.
+1. **Tempo:** 3 s down, 1 s pause at the bottom, 1 s up.
+2. **Pause:** 2 s at the hardest point.
+3. **Unilateral:** Bulgarian split squat, single-leg deadlift.
+4. **Less rest:** drop to 45 s.
+5. **More reps:** raise the range to 15–20.
 
-Idealmente el registro guarda el tempo/variante usada, para que el historial siga siendo comparable.
-
----
-
-## 8. Criterios de aceptación
-
-- [ ] Abro la app y en menos de 3 segundos sé qué día me toca y qué discos poner en el primer ejercicio.
-- [ ] Registrar una serie es **un toque** si el peso y las reps sugeridas son correctos.
-- [ ] Si no entreno el miércoles, el jueves me aparece exactamente lo que me tocaba el miércoles.
-- [ ] La app nunca sugiere una carga que no se puede armar con 4×1.25 + 6×2.5 + 4×5 kg.
-- [ ] Al completar 4×12 en un ejercicio, la próxima vez me propone +2.5 kg y puedo rechazarlo.
-- [ ] Cierro el navegador, vuelvo mañana y todo el historial sigue ahí.
-- [ ] Puedo exportar mi historial a un archivo y volver a importarlo.
-- [ ] Todo se usa con una mano, en pantalla de teléfono, sin hacer zoom.
-- [ ] Ningún texto de la interfaz culpa al usuario por faltar.
+Ideally the log stores the tempo/variant used, so history stays comparable.
 
 ---
 
-## 9. Decisiones que puede tomar Claude Code
+## 8. Acceptance criteria
 
-Sin necesidad de preguntar: framework, estructura de archivos, diseño visual, nombres internos, forma exacta de las gráficas, y si la persistencia es `localStorage` o IndexedDB.
+- [ ] Open the app and within 3 seconds know which day is due and which plates to load
+      for the first exercise.
+- [ ] Logging a set is **one tap** when the suggested weight and reps are correct.
+- [ ] If Wednesday is skipped, Thursday shows exactly what was due Wednesday.
+- [ ] The app never suggests a load that can't be built with
+      4×1.25 + 6×2.5 + 4×5 kg.
+- [ ] After completing 4×12 on an exercise, next time it proposes +2.5 kg and it can be
+      rejected.
+- [ ] Close the browser, come back tomorrow, and all history is still there.
+- [ ] History can be exported to a file and re-imported.
+- [ ] Everything is usable one-handed, on a phone screen, without zooming.
+- [ ] No UI text blames the user for missing a day.
 
-**Sí conviene preguntar antes de implementar:** cualquier cosa que cambie el programa de entrenamiento en sí (ejercicios, series, reps, cargas iniciales, rotación). Esos números están calculados para el inventario real y no deben improvisarse.
+---
+
+## 9. Decisions Claude Code can make
+
+Without needing to ask: framework, file structure, visual design, internal names, the
+exact shape of the charts, and whether persistence is `localStorage` or IndexedDB.
+
+**Worth asking before implementing:** anything that changes the training program itself
+(exercises, sets, reps, initial loads, rotation). Those numbers are calculated for the
+real equipment inventory and must not be improvised.
