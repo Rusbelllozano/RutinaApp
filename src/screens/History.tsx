@@ -48,6 +48,7 @@ export function History() {
                 active={ex.id === activeId}
                 role="button"
                 tabIndex={0}
+                aria-pressed={ex.id === activeId}
                 onClick={() => setSelectedId(ex.id)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
