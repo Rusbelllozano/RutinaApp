@@ -8,6 +8,7 @@ import { useSettingsStore } from '../store/useSettingsStore'
 import { getBuildableWeights, getPlateBreakdown, nearestBuildable, describePlateBreakdown } from '../lib/plates'
 import { suggestProgression } from '../lib/progression'
 import { getRoutineColor } from '../lib/routineColor'
+import { todayISODate } from '../lib/date'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -304,7 +305,7 @@ export function Session() {
   function finalizeSession(finalExercises: SessionLogExercise[]) {
     const durationMin = Math.max(1, Math.round((Date.now() - startedAt) / 60_000))
     const log = addLog({
-      date: new Date().toISOString().slice(0, 10),
+      date: todayISODate(),
       routineId: routine!.id,
       exercises: finalExercises,
       isMinimalVersion: minimal,
