@@ -8,6 +8,13 @@ business rules, the program data, and the acceptance criteria. Read it before to
 any business logic — this CLAUDE.md summarizes technical decisions and project status,
 it does not replace the handoff.
 
+**Feature specs:** `docs/specs/` contains detailed specs for four features layered on top
+of the HANDOFF's v1 scope — a standalone weight calculator, an exercise library (custom
+exercises), a routine calendar (history + planning), and a routine picker (start any
+routine, not just the auto-suggested one). Read `docs/specs/00-overview.md` first — it
+explains the data model change (`WorkoutDay` → `Routine`, exercises become a shared
+catalog) that all four specs depend on.
+
 **Language split:** code, file names, types, comments and technical docs (this file,
 README, HANDOFF) are in English. All user-facing UI text — exercise names, buttons,
 messages, the PWA name — stays in **Spanish**, because the end user trains in Spanish.
@@ -54,7 +61,8 @@ src/
                          # see HANDOFF section 9.
   store/                 # Zustand stores, one per domain (settings, rotation, history…)
   App.tsx                # app shell (placeholder for now)
-docs/HANDOFF.md           # full functional spec
+docs/HANDOFF.md           # full functional spec (v1 baseline)
+docs/specs/                # feature specs layered on top of the HANDOFF (see above)
 .github/workflows/deploy.yml  # build + deploy to GitHub Pages on push to main
 ```
 
@@ -112,25 +120,37 @@ shapes are free to decide. **Any change to the program itself** (exercises, sets
 initial loads, the rotation) must be confirmed with the user before touching it — those
 numbers are calculated for the real equipment inventory.
 
-## Next steps (building v1)
+## Next steps (building v1 + the specs in docs/specs/)
 
-Suggested order, since each step depends on the previous one:
+Suggested order, since each step depends on the previous one. This supersedes the plain
+`WorkoutDay`-based plan from before the specs existed — step 2 now builds the
+catalog/routine model from `docs/specs/00-overview.md` instead of a flat day list.
 
 1. `src/lib/plates.ts` — pure plate calculator (no UI), with tests. It's the riskiest
-   feature in the app; worth getting solid before building screens on top of it.
-2. `src/store/useHistoryStore.ts` + `useRotationStore.ts` — persistence for logged
-   sessions and the A/B/C rotation pointer.
+   feature in the app; worth getting solid before building screens on top of it. Powers
+   session mode, `docs/specs/01-weight-calculator.md`'s standalone screen, and the
+   weight-sanity check in `docs/specs/02-exercise-library.md`.
+2. Data model + stores per `docs/specs/00-overview.md`: `Exercise`/`Routine`/
+   `RoutineExercise` types (replacing `WorkoutDay`), seeded from `src/data/program.ts` on
+   first load, plus `useExerciseStore`, `useRoutineStore`, `useRotationStore`,
+   `useHistoryStore`, `useCalendarStore`.
 3. `src/lib/progression.ts` — double progression, comparing against the last logged
-   session.
+   session for a given `exerciseId` (not per-routine).
 4. Screens: Home → Warmup → Session mode (one exercise at a time) → Cooldown → Summary.
    Session mode is the central screen: one tap to confirm a set with the suggestion
-   preloaded.
+   preloaded, and per `docs/specs/04-routine-picker.md` it's routine-id-driven so any
+   entry point (auto-suggested, manually picked, from the calendar) lands here.
 5. Rest timer (sound/vibration, skippable).
-6. History with a simple chart per exercise.
-7. Settings: barbell/dumbbell weights, plate inventory, sound, reset rotation.
-8. Export/import the full state as JSON.
-9. Load ceiling (HANDOFF section 7): alternate progression variants once an exercise has
-   spent 3 weeks at the max buildable weight.
+6. Routine picker (`docs/specs/04-routine-picker.md`) and exercise library
+   (`docs/specs/02-exercise-library.md`) screens.
+7. History with a simple chart per exercise, and the routine calendar
+   (`docs/specs/03-routine-calendar.md`).
+8. Settings: barbell/dumbbell weights, plate inventory, sound, reset rotation.
+9. Export/import the full state as JSON — must cover all six persisted stores, not just
+   settings.
+10. Load ceiling (HANDOFF section 7): alternate progression variants once an exercise has
+    spent 3 weeks at the max buildable weight.
 
-Before calling a feature done, check it against the acceptance criteria (HANDOFF section
-8) — that's this project's definition of "done."
+Before calling a feature done, check it against the acceptance criteria in HANDOFF
+section 8 and in the relevant `docs/specs/*.md` file — those are this project's
+definition of "done."
