@@ -1,4 +1,29 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
+
+/*
+ * Design tokens from docs/DESIGN.md — dark theme, one muted accent, flat
+ * blocks with no shadows. Keep this file in sync with that doc; it's the
+ * source of truth, this is the Tailwind v4 translation of it.
+ */
+@theme {
+  --color-bg: #14171c;
+  --color-bg-elevated: #1b1f26;
+  --color-bg-elevated-2: #232833;
+  --color-border: #2b313d;
+  --color-text: #eef1f5;
+  --color-text-secondary: #a7b0bd;
+  --color-text-tertiary: #707888;
+  --color-accent: #6c93d8;
+  --color-accent-ink: #10182b;
+  --color-routine-a: #c98a5e;
+  --color-routine-b: #7fa97f;
+  --color-routine-c: #9b8ac4;
+  --color-danger: #c57272;
+
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
 
 :root {
   color-scheme: dark;
@@ -12,6 +37,9 @@ body,
 
 body {
   margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
   /* Prevents pull-to-refresh and double-tap zoom during the workout session. */
   overscroll-behavior-y: contain;
   touch-action: manipulation;

@@ -1,36 +1,40 @@
-import { program } from './data/program'
-import { useSettingsStore } from './store/useSettingsStore'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Layout } from './components/Layout'
+import { Home } from './screens/Home'
+import { Warmup } from './screens/Warmup'
+import { Session } from './screens/Session'
+import { Cooldown } from './screens/Cooldown'
+import { Summary } from './screens/Summary'
+import { History } from './screens/History'
+import { Settings } from './screens/Settings'
+import { Calculator } from './screens/Calculator'
+import { ExerciseLibrary } from './screens/ExerciseLibrary'
+import { AddExercise } from './screens/AddExercise'
+import { Calendar } from './screens/Calendar'
+import { RoutinePicker } from './screens/RoutinePicker'
 
 function App() {
-  const equipment = useSettingsStore((s) => s.equipment)
-
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 bg-slate-950 px-4 py-8 text-slate-100">
-      <header>
-        <h1 className="text-2xl font-semibold">Rutina</h1>
-        <p className="text-sm text-slate-400">Scaffold listo — próximo paso: pantalla de inicio y rotación A-B-C.</p>
-      </header>
-
-      <section className="rounded-2xl bg-slate-900 p-4">
-        <h2 className="mb-2 text-lg font-medium">Días del programa</h2>
-        <ul className="flex flex-col gap-2">
-          {program.days.map((day) => (
-            <li key={day.id} className="rounded-xl bg-slate-800 px-3 py-2">
-              <span className="font-semibold">{day.id}</span> — {day.name}
-              <span className="block text-xs text-slate-400">{day.muscleGroups.join(', ')}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="rounded-2xl bg-slate-900 p-4">
-        <h2 className="mb-2 text-lg font-medium">Equipo (editable en Ajustes)</h2>
-        <p className="text-sm text-slate-400">
-          Barra larga: {equipment.barbell.weightKg} kg · Discos totales:{' '}
-          {equipment.plates.reduce((acc, p) => acc + p.kg * p.quantity, 0)} kg
-        </p>
-      </section>
-    </div>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-bg text-text">
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<Home />} />
+            <Route path="history" element={<History />} />
+            <Route path="calendar" element={<Calendar />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+          <Route path="warmup" element={<Warmup />} />
+          <Route path="session/:routineId" element={<Session />} />
+          <Route path="cooldown" element={<Cooldown />} />
+          <Route path="summary" element={<Summary />} />
+          <Route path="calculator" element={<Calculator />} />
+          <Route path="exercises" element={<ExerciseLibrary />} />
+          <Route path="exercises/new" element={<AddExercise />} />
+          <Route path="routines" element={<RoutinePicker />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   )
 }
 
