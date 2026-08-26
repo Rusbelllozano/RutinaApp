@@ -14,6 +14,9 @@ dev-dist
 *.local
 *.tsbuildinfo
 
+# Claude Code local agent worktrees (scratch checkouts for parallel subagents)
+.claude/worktrees/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
