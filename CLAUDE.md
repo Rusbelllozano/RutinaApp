@@ -15,6 +15,13 @@ routine, not just the auto-suggested one). Read `docs/specs/00-overview.md` firs
 explains the data model change (`WorkoutDay` → `Routine`, exercises become a shared
 catalog) that all four specs depend on.
 
+**Design system:** `docs/DESIGN.md` has the color/type/component tokens for every
+screen — dark theme, one muted blue accent, flat blocks with no shadows, IBM Plex Sans +
+Mono. Drafted as static mockups covering all 12 screens (the HANDOFF's core flow plus
+the four specs above) before any screen was built; use it as the source of truth when
+implementing screens, translating its tokens into Tailwind v4's `@theme` block in
+`src/index.css`.
+
 **Language split:** code, file names, types, comments and technical docs (this file,
 README, HANDOFF) are in English. All user-facing UI text — exercise names, buttons,
 messages, the PWA name — stays in **Spanish**, because the end user trains in Spanish.
@@ -63,6 +70,7 @@ src/
   App.tsx                # app shell (placeholder for now)
 docs/HANDOFF.md           # full functional spec (v1 baseline)
 docs/specs/                # feature specs layered on top of the HANDOFF (see above)
+docs/DESIGN.md             # design system tokens (see above)
 .github/workflows/deploy.yml  # build + deploy to GitHub Pages on push to main
 ```
 
