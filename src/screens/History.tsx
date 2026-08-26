@@ -1,18 +1,54 @@
 import { useMemo, useState } from 'react'
 import { useExerciseStore } from '../store/useExerciseStore'
 import { useHistoryStore } from '../store/useHistoryStore'
+import { useRoutineStore } from '../store/useRoutineStore'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { SectionLabel } from '../components/ui/SectionLabel'
-import type { LoggedSet } from '../types/routine'
+import { getRoutineColor } from '../lib/routineColor'
+import type { LoggedSet, SessionLog } from '../types/routine'
 
 interface ChartPoint {
   date: string
   maxWeight: number
 }
 
-/** Per exercise: history/HANDOFF.md §5.6. */
+type Tab = 'exercise' | 'sessions'
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'exercise', label: 'Por ejercicio' },
+  { id: 'sessions', label: 'Sesiones completas' },
+]
+
+/** History/HANDOFF.md §5.6: per-exercise progress, and every completed session in full. */
 export function History() {
+  const [tab, setTab] = useState<Tab>('exercise')
+
+  return (
+    <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-5 pb-3 pt-7">
+      <div className="text-lg font-semibold">Historial</div>
+
+      <div className="flex rounded-full bg-bg-elevated-2 p-1">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={`flex-1 rounded-full px-2 py-2.5 text-[13px] font-semibold transition-colors ${
+              tab === t.id ? 'bg-accent text-accent-ink' : 'text-text-secondary'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'exercise' ? <ByExerciseTab /> : <SessionsTab />}
+    </div>
+  )
+}
+
+function ByExerciseTab() {
   const exercises = useExerciseStore((s) => s.exercises)
   const getLogsForExercise = useHistoryStore((s) => s.getLogsForExercise)
   const [selectedId, setSelectedId] = useState<string | undefined>(exercises[0]?.id)
@@ -33,67 +69,115 @@ export function History() {
     }))
     .filter((p) => p.maxWeight > 0)
 
+  if (exercises.length === 0) {
+    return <div className="text-text-secondary">Todavía no hay ejercicios en el catálogo.</div>
+  }
+
   return (
-    <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-5 pb-3 pt-7">
-      <div className="text-lg font-semibold">Historial</div>
+    <>
+      <div className="-mx-5 flex gap-2 overflow-x-auto px-5">
+        {exercises.map((ex) => (
+          <Chip
+            key={ex.id}
+            active={ex.id === activeId}
+            role="button"
+            tabIndex={0}
+            onClick={() => setSelectedId(ex.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setSelectedId(ex.id)
+              }
+            }}
+            className="flex-shrink-0 cursor-pointer whitespace-nowrap"
+          >
+            {ex.name}
+          </Chip>
+        ))}
+      </div>
 
-      {exercises.length === 0 ? (
-        <div className="text-text-secondary">Todavía no hay ejercicios en el catálogo.</div>
-      ) : (
+      {selectedExercise && (
         <>
-          <div className="-mx-5 flex gap-2 overflow-x-auto px-5">
-            {exercises.map((ex) => (
-              <Chip
-                key={ex.id}
-                active={ex.id === activeId}
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedId(ex.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    setSelectedId(ex.id)
-                  }
-                }}
-                className="flex-shrink-0 cursor-pointer whitespace-nowrap"
-              >
-                {ex.name}
-              </Chip>
-            ))}
-          </div>
-
-          {selectedExercise && (
-            <>
-              <Card className="flex flex-col gap-4">
-                <SectionLabel>Progreso de peso</SectionLabel>
-                {points.length >= 2 ? (
-                  <WeightChart points={points} />
-                ) : (
-                  <div className="text-sm text-text-tertiary">
-                    Todavía no hay suficientes sesiones con peso registrado para graficar.
-                  </div>
-                )}
-              </Card>
-
-              <div className="flex flex-col gap-3">
-                <SectionLabel>Sesiones registradas</SectionLabel>
-                {logs.length === 0 ? (
-                  <div className="text-sm text-text-tertiary">Sin sesiones registradas todavía.</div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {[...logs].reverse().map((log, i) => (
-                      <Card key={`${log.date}-${i}`} className="flex flex-col gap-1">
-                        <div className="text-xs text-text-secondary">{formatDate(log.date)}</div>
-                        <div className="font-mono text-sm text-text">{formatSets(log.entry.sets)}</div>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+          <Card className="flex flex-col gap-4">
+            <SectionLabel>Progreso de peso</SectionLabel>
+            {points.length >= 2 ? (
+              <WeightChart points={points} />
+            ) : (
+              <div className="text-sm text-text-tertiary">
+                Todavía no hay suficientes sesiones con peso registrado para graficar.
               </div>
-            </>
-          )}
+            )}
+          </Card>
+
+          <div className="flex flex-col gap-3">
+            <SectionLabel>Sesiones registradas</SectionLabel>
+            {logs.length === 0 ? (
+              <div className="text-sm text-text-tertiary">Sin sesiones registradas todavía.</div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {[...logs].reverse().map((log, i) => (
+                  <Card key={`${log.date}-${i}`} className="flex flex-col gap-1">
+                    <div className="text-xs text-text-secondary">{formatDate(log.date)}</div>
+                    <div className="font-mono text-sm text-text">{formatSets(log.entry.sets)}</div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </>
       )}
+    </>
+  )
+}
+
+/** Every logged session in full — date, routine, and every exercise's sets that day. */
+function SessionsTab() {
+  const logs = useHistoryStore((s) => s.logs)
+  const getRoutineById = useRoutineStore((s) => s.getRoutineById)
+  const getExerciseById = useExerciseStore((s) => s.getExerciseById)
+
+  if (logs.length === 0) {
+    return <div className="text-text-secondary">Todavía no completaste ninguna sesión.</div>
+  }
+
+  const sorted = [...logs].reverse()
+
+  return (
+    <div className="flex flex-col gap-3">
+      {sorted.map((log: SessionLog) => {
+        const routine = getRoutineById(log.routineId)
+        const totalSets = log.exercises.reduce((sum, e) => sum + e.sets.length, 0)
+        return (
+          <Card key={log.id} className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${getRoutineColor(log.routineId).bg}`} />
+                <div className="font-semibold">{routine?.name ?? 'Rutina eliminada'}</div>
+              </div>
+              <div className="text-xs text-text-tertiary">{formatDate(log.date)}</div>
+            </div>
+
+            <div className="flex flex-wrap gap-3 text-xs text-text-secondary">
+              <span>{log.exercises.length} ejercicios</span>
+              <span>{totalSets} series</span>
+              {log.durationMin != null && <span>{log.durationMin} min</span>}
+              {log.isMinimalVersion && <span className="text-accent">versión mínima</span>}
+            </div>
+
+            <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+              {log.exercises.map((e) => {
+                const exercise = getExerciseById(e.exerciseId)
+                return (
+                  <div key={e.exerciseId} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-text-secondary">{exercise?.name ?? 'Ejercicio eliminado'}</span>
+                    <span className="flex-shrink-0 font-mono text-text">{formatSets(e.sets)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        )
+      })}
     </div>
   )
 }

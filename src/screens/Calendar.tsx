@@ -9,6 +9,8 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { SectionLabel } from '../components/ui/SectionLabel'
 import { ChevronLeftIcon, ChevronRightIcon, XIcon, CheckIcon, PlayIcon } from '../components/ui/icons'
+import { toISODate, todayISODate } from '../lib/date'
+import { getRoutineColor } from '../lib/routineColor'
 
 const WEEKDAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 
@@ -27,33 +29,7 @@ const MONTH_NAMES = [
   'diciembre',
 ]
 
-/**
- * Literal Tailwind class names (not built via template strings) so the
- * theme tokens from docs/DESIGN.md's routine palette are picked up by
- * Tailwind's scanner — same convention as PlateDiagram.
- */
-const ROUTINE_COLOR: Record<string, { bg: string; border: string; text: string }> = {
-  'base-a': { bg: 'bg-routine-a', border: 'border-routine-a', text: 'text-routine-a' },
-  'base-b': { bg: 'bg-routine-b', border: 'border-routine-b', text: 'text-routine-b' },
-  'base-c': { bg: 'bg-routine-c', border: 'border-routine-c', text: 'text-routine-c' },
-}
-const DEFAULT_ROUTINE_COLOR = { bg: 'bg-accent', border: 'border-accent', text: 'text-accent' }
-
-function getRoutineColor(routineId?: string) {
-  if (!routineId) return DEFAULT_ROUTINE_COLOR
-  return ROUTINE_COLOR[routineId] ?? DEFAULT_ROUTINE_COLOR
-}
-
-function pad(n: number): string {
-  return String(n).padStart(2, '0')
-}
-
-/** Local-date ISO formatting — avoids the UTC shift of Date#toISOString. */
-function toISODate(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-const TODAY_ISO = toISODate(new Date())
+const TODAY_ISO = todayISODate()
 
 interface DayCell {
   date: Date

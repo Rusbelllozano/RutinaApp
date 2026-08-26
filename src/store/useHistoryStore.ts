@@ -36,7 +36,10 @@ export const useHistoryStore = create<HistoryState>()(
           .logs.filter((l) => l.exercises.some((e) => e.exerciseId === exerciseId))
           .map((l) => ({ date: l.date, entry: l.exercises.find((e) => e.exerciseId === exerciseId)! })),
 
-      getLogForDate: (date) => get().logs.find((l) => l.date === date),
+      // Logs are appended chronologically, so the last match for a date is the most
+      // recent session logged that day (there can be more than one — see
+      // Home.tsx's "entrenar otra rutina de todos modos").
+      getLogForDate: (date) => get().logs.findLast((l) => l.date === date),
     }),
     { name: 'routine-app:history' },
   ),

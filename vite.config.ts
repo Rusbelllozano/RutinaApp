@@ -20,8 +20,8 @@ export default defineConfig({
         start_url: '/RutinaApp/',
         scope: '/RutinaApp/',
         display: 'standalone',
-        background_color: '#0f172a',
-        theme_color: '#0f172a',
+        background_color: '#14171c',
+        theme_color: '#14171c',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
