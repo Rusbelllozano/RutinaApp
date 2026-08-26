@@ -7,6 +7,7 @@ import { useRotationStore } from '../store/useRotationStore'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { getBuildableWeights, getPlateBreakdown, nearestBuildable, describePlateBreakdown } from '../lib/plates'
 import { suggestProgression } from '../lib/progression'
+import { getRoutineColor } from '../lib/routineColor'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -32,13 +33,6 @@ const MIN_SESSION_SETS = 2
 
 function sortedExercises(routine: Routine): RoutineExercise[] {
   return [...routine.exercises].sort((a, b) => a.order - b.order)
-}
-
-function routineColorClass(routineId: string): string {
-  if (routineId === 'base-a') return 'bg-routine-a'
-  if (routineId === 'base-b') return 'bg-routine-b'
-  if (routineId === 'base-c') return 'bg-routine-c'
-  return 'bg-accent'
 }
 
 /** Snaps a raw target weight onto the nearest weight the current plate inventory can build. */
@@ -360,7 +354,7 @@ export function Session() {
         title={`Ejercicio ${currentExerciseIndex + 1} de ${exercisesToRun.length}`}
         right={
           <span className="flex items-center gap-2">
-            <span className={`h-2 w-2 rounded-full ${routineColorClass(routine.id)}`} />
+            <span className={`h-2 w-2 rounded-full ${getRoutineColor(routine.id).bg}`} />
             {minimal && <Chip active>Mínima</Chip>}
           </span>
         }
@@ -416,7 +410,7 @@ export function Session() {
             <SectionLabel>PESO Y DISCOS</SectionLabel>
             {breakdown ? (
               <div className="flex flex-col gap-2">
-                <PlateDiagram breakdown={breakdown} colorClassName={routineColorClass(routine.id)} />
+                <PlateDiagram breakdown={breakdown} colorClassName={getRoutineColor(routine.id).bg} />
                 <div className="text-xs text-text-tertiary">{describePlateBreakdown(breakdown)}</div>
               </div>
             ) : (
