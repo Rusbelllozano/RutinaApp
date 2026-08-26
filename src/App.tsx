@@ -24,7 +24,7 @@ function App() {
             <Route path="calendar" element={<Calendar />} />
             <Route path="settings" element={<Settings />} />
           </Route>
-          <Route path="warmup" element={<Warmup />} />
+          <Route path="warmup/:routineId" element={<Warmup />} />
           <Route path="session/:routineId" element={<Session />} />
           <Route path="cooldown" element={<Cooldown />} />
           <Route path="summary" element={<Summary />} />
