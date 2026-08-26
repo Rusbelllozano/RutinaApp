@@ -40,10 +40,13 @@ export function Settings() {
   }
 
   function handleExport() {
+    // A store that hasn't been written to yet (e.g. the user never touched the Calendar
+    // or added a custom routine) has no localStorage entry at all — omit it rather than
+    // bundling `null`, so importing this file elsewhere never wipes that store's real data.
     const bundle: Record<string, unknown> = {}
     for (const key of STORE_KEYS) {
       const raw = localStorage.getItem(key)
-      bundle[key] = raw ? JSON.parse(raw) : null
+      if (raw !== null) bundle[key] = JSON.parse(raw)
     }
     const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -66,12 +69,14 @@ export function Settings() {
     try {
       const text = await file.text()
       const bundle = JSON.parse(text) as Record<string, unknown>
-      const missing = STORE_KEYS.filter((key) => !(key in bundle))
-      if (missing.length > 0) {
+      const recognized = STORE_KEYS.filter((key) => key in bundle)
+      if (recognized.length === 0) {
         setImportError('El archivo no parece un respaldo válido de RutinaApp.')
         return
       }
-      for (const key of STORE_KEYS) {
+      // A missing key means the exporting device never wrote that store — leave this
+      // device's copy of it untouched instead of overwriting it with nothing.
+      for (const key of recognized) {
         localStorage.setItem(key, JSON.stringify(bundle[key]))
       }
       window.location.reload()
@@ -150,7 +155,7 @@ export function Settings() {
         <Button
           variant="secondary"
           size="md"
-          className="border-danger text-danger"
+          className="border-danger text-danger!"
           onClick={handleResetRotation}
         >
           Reiniciar rotación A-B-C

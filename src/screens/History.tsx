@@ -46,7 +46,15 @@ export function History() {
               <Chip
                 key={ex.id}
                 active={ex.id === activeId}
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelectedId(ex.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setSelectedId(ex.id)
+                  }
+                }}
                 className="flex-shrink-0 cursor-pointer whitespace-nowrap"
               >
                 {ex.name}
