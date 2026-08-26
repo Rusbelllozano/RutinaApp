@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  /* Evita el "pull to refresh" y el zoom por doble tap durante la sesión de entrenamiento. */
+  overscroll-behavior-y: contain;
+  touch-action: manipulation;
+}
