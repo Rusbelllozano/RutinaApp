@@ -28,9 +28,23 @@ function formatKg(kg: number): string {
   return Number.isInteger(kg) ? `${kg}` : kg.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
 }
 
-/** Base (no-plates) weight for the given equipment type, always buildable. */
+/**
+ * Base (no-plates) weight for the given equipment type, always buildable. Mirrors the
+ * private mapping in src/lib/plates.ts (not exported from there) so it must stay in sync;
+ * kept exhaustive over EquipmentType (rather than a barbell/else ternary) so an equipment
+ * type this screen doesn't currently offer — e.g. 'bodyweight' — can't silently fall
+ * through to the dumbbell-handle weight if the equipment picker is ever extended.
+ */
 function baseWeightFor(equipmentType: EquipmentType, equipment: ReturnType<typeof useSettingsStore.getState>['equipment']): number {
-  return equipmentType === 'barbell' ? equipment.barbell.weightKg : equipment.dumbbellHandle.weightKg
+  switch (equipmentType) {
+    case 'barbell':
+      return equipment.barbell.weightKg
+    case 'single_dumbbell':
+    case 'dumbbell_pair':
+      return equipment.dumbbellHandle.weightKg
+    case 'bodyweight':
+      return 0
+  }
 }
 
 /**
@@ -49,15 +63,16 @@ export function Calculator() {
     [equipmentType, equipment],
   )
 
+  // Only the "target" mode renders these, so skip the plate search in "inventory" mode.
   const breakdown = useMemo(
-    () => getPlateBreakdown(equipmentType, targetKg, equipment),
-    [equipmentType, targetKg, equipment],
+    () => (mode === 'target' ? getPlateBreakdown(equipmentType, targetKg, equipment) : null),
+    [mode, equipmentType, targetKg, equipment],
   )
 
   const alternatives = useMemo(() => {
-    if (breakdown) return null
+    if (mode !== 'target' || breakdown) return null
     return nearestBuildable(targetKg, buildableWeights)
-  }, [breakdown, targetKg, buildableWeights])
+  }, [mode, breakdown, targetKg, buildableWeights])
 
   function selectEquipmentType(next: EquipmentType) {
     setEquipmentType(next)
