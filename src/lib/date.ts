@@ -10,3 +10,10 @@ export function toISODate(date: Date): string {
 export function todayISODate(): string {
   return toISODate(new Date())
 }
+
+/** Formats a duration in seconds as `m:ss` (or `mm:ss` etc.) — no hour rollover, sessions are short. */
+export function formatDurationMMSS(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60)
+  const s = totalSeconds % 60
+  return `${m}:${pad(s)}`
+}

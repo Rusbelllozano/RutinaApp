@@ -4,12 +4,7 @@ import { program } from '../data/program'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { Button } from '../components/ui/Button'
 import { CheckIcon } from '../components/ui/icons'
-
-/** Router `state` handed from Warmup to Session — kept in sync with the matching shape in Session.tsx. */
-interface SessionFlowState {
-  /** Epoch ms when the warmup began — used to compute the logged session's duration. */
-  startedAt: number
-}
+import { SessionTimerBar } from '../components/SessionTimerBar'
 
 /** Warmup checklist — docs/HANDOFF.md §5.2. 7 items, tappable, skippable. */
 export function Warmup() {
@@ -18,7 +13,6 @@ export function Warmup() {
   const [searchParams] = useSearchParams()
   const minimal = searchParams.get('minimal') === '1'
   const [done, setDone] = useState<Set<number>>(new Set())
-  const [startedAt] = useState(() => Date.now())
 
   function toggle(i: number) {
     setDone((prev) => {
@@ -31,13 +25,13 @@ export function Warmup() {
 
   function goToSession() {
     if (!routineId) return
-    const flowState: SessionFlowState = { startedAt }
-    navigate(`/session/${routineId}${minimal ? '?minimal=1' : ''}`, { state: flowState })
+    navigate(`/session/${routineId}${minimal ? '?minimal=1' : ''}`)
   }
 
   return (
     <div className="flex flex-1 flex-col">
       <ScreenHeader title="Calentamiento" />
+      <SessionTimerBar />
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-5 pb-3 pt-3">
         {program.warmup.map((item, i) => {
           const isDone = done.has(i)

@@ -140,6 +140,14 @@ export function isBuildable(equipmentType: EquipmentType, targetKg: number, equi
   return getPlateBreakdown(equipmentType, targetKg, equipment) !== null
 }
 
+/** Snaps a raw target weight onto the nearest weight the given plate inventory can build. */
+export function clampToBuildable(weight: number | undefined, buildable: number[]): number | undefined {
+  if (weight === undefined || buildable.length === 0) return undefined
+  if (buildable.includes(weight)) return weight
+  const { below, above } = nearestBuildable(weight, buildable)
+  return below ?? above ?? undefined
+}
+
 export function describePlateBreakdown(breakdown: PlateBreakdown): string {
   if (breakdown.perSide.length === 0) return 'sin discos'
   return breakdown.perSide.map((p) => `${p.count}×${p.kg}kg`).join(' + ') + ' por lado'

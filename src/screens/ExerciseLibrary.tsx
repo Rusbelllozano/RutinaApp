@@ -1,17 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useExerciseStore } from '../store/useExerciseStore'
+import { equipmentLabels } from '../lib/equipmentLabels'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { Chip } from '../components/ui/Chip'
 import { PlusIcon, SearchIcon, XIcon } from '../components/ui/icons'
 import type { EquipmentType } from '../types/routine'
-
-const equipmentLabels: Record<EquipmentType, string> = {
-  barbell: 'Barra',
-  dumbbell_pair: 'Mancuernas (par)',
-  single_dumbbell: 'Mancuerna',
-  bodyweight: 'Peso corporal',
-}
 
 const equipmentFilters: { value: EquipmentType | 'all'; label: string }[] = [
   { value: 'all', label: 'Todos' },

@@ -12,6 +12,9 @@ import { ExerciseLibrary } from './screens/ExerciseLibrary'
 import { AddExercise } from './screens/AddExercise'
 import { Calendar } from './screens/Calendar'
 import { RoutinePicker } from './screens/RoutinePicker'
+import { RoutineEditor } from './screens/RoutineEditor'
+import { SessionOverview } from './screens/SessionOverview'
+import { PlateSetup } from './screens/PlateSetup'
 
 function App() {
   return (
@@ -24,6 +27,8 @@ function App() {
             <Route path="calendar" element={<Calendar />} />
             <Route path="settings" element={<Settings />} />
           </Route>
+          <Route path="session-overview/:routineId" element={<SessionOverview />} />
+          <Route path="plate-setup/:routineId" element={<PlateSetup />} />
           <Route path="warmup/:routineId" element={<Warmup />} />
           <Route path="session/:routineId" element={<Session />} />
           <Route path="cooldown" element={<Cooldown />} />
@@ -32,6 +37,7 @@ function App() {
           <Route path="exercises" element={<ExerciseLibrary />} />
           <Route path="exercises/new" element={<AddExercise />} />
           <Route path="routines" element={<RoutinePicker />} />
+          <Route path="routines/:routineId/edit" element={<RoutineEditor />} />
         </Routes>
       </div>
     </BrowserRouter>

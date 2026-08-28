@@ -134,3 +134,19 @@ export function DumbbellIcon(props: IconProps) {
     </svg>
   )
 }
+
+export function PauseIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M8 6v12M16 6v12" />
+    </svg>
+  )
+}
+
+export function EditIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 20h4L18.5 9.5a2.121 2.121 0 00-3-3L5 17v3z" />
+    </svg>
+  )
+}
