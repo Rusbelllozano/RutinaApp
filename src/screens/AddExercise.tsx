@@ -1,12 +1,13 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useExerciseStore } from '../store/useExerciseStore'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { getBuildableWeights, isBuildable, nearestBuildable } from '../lib/plates'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
-import { SectionLabel } from '../components/ui/SectionLabel'
 import { Chip } from '../components/ui/Chip'
 import { Button } from '../components/ui/Button'
+import { Field } from '../components/ui/Field'
+import { Stepper } from '../components/ui/Stepper'
 import { ChevronDownIcon } from '../components/ui/icons'
 import type { EquipmentType } from '../types/routine'
 
@@ -21,57 +22,6 @@ const muscleGroupPresets = ['pecho', 'espalda', 'hombros', 'bíceps', 'tríceps'
 
 const inputClass =
   'h-11 w-full rounded-xl border border-border bg-bg-elevated-2 px-3.5 text-[14px] text-text placeholder:text-text-tertiary focus:outline-none'
-
-/** +/- stepper for whole-number values (sets, reps, rest seconds), per docs/DESIGN.md's input styling. */
-function Stepper({
-  value,
-  onChange,
-  min = 0,
-  max = 999,
-  step = 1,
-  suffix,
-}: {
-  value: number
-  onChange: (v: number) => void
-  min?: number
-  max?: number
-  step?: number
-  suffix?: string
-}) {
-  return (
-    <div className="flex h-11 flex-1 items-center justify-between rounded-xl border border-border bg-bg-elevated-2 px-1.5">
-      <button
-        type="button"
-        aria-label="Restar"
-        onClick={() => onChange(Math.max(min, value - step))}
-        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-lg text-text-secondary"
-      >
-        −
-      </button>
-      <span className="font-mono text-[15px] text-text">
-        {value}
-        {suffix ? <span className="ml-0.5 text-xs text-text-tertiary">{suffix}</span> : null}
-      </span>
-      <button
-        type="button"
-        aria-label="Sumar"
-        onClick={() => onChange(Math.min(max, value + step))}
-        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-lg text-text-secondary"
-      >
-        +
-      </button>
-    </div>
-  )
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <SectionLabel>{label}</SectionLabel>
-      {children}
-    </div>
-  )
-}
 
 /** Add-exercise form (catalog only, flow A) per docs/specs/02-exercise-library.md. */
 export function AddExercise() {

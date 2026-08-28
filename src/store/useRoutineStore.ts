@@ -11,6 +11,8 @@ interface RoutineState {
   addExerciseToRoutine: (routineId: string, routineExercise: RoutineExercise) => void
   removeExerciseFromRoutine: (routineId: string, exerciseId: string) => void
   updateRoutineExercise: (routineId: string, exerciseId: string, patch: Partial<RoutineExercise>) => void
+  /** Swaps `order` with the previous (-1) or next (1) exercise in the routine. No-op past either edge. */
+  moveExerciseInRoutine: (routineId: string, exerciseId: string, direction: 1 | -1) => void
   removeExerciseFromAllRoutines: (exerciseId: string) => void
   getRoutineById: (id: string) => Routine | undefined
 }
@@ -59,6 +61,27 @@ export const useRoutineStore = create<RoutineState>()(
                 }
               : r,
           ),
+        })),
+
+      moveExerciseInRoutine: (routineId, exerciseId, direction) =>
+        set((s) => ({
+          routines: s.routines.map((r) => {
+            if (r.id !== routineId) return r
+            const sorted = [...r.exercises].sort((a, b) => a.order - b.order)
+            const idx = sorted.findIndex((re) => re.exerciseId === exerciseId)
+            const swapIdx = idx + direction
+            if (idx === -1 || swapIdx < 0 || swapIdx >= sorted.length) return r
+            const a = sorted[idx]
+            const b = sorted[swapIdx]
+            return {
+              ...r,
+              exercises: r.exercises.map((re) => {
+                if (re.exerciseId === a.exerciseId) return { ...re, order: b.order }
+                if (re.exerciseId === b.exerciseId) return { ...re, order: a.order }
+                return re
+              }),
+            }
+          }),
         })),
 
       removeExerciseFromAllRoutines: (exerciseId) =>

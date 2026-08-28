@@ -4,6 +4,7 @@ import { useRotationStore } from '../store/useRotationStore'
 import { useRoutineStore } from '../store/useRoutineStore'
 import { useHistoryStore } from '../store/useHistoryStore'
 import { useCalendarStore } from '../store/useCalendarStore'
+import { useSessionTimerStore } from '../store/useSessionTimerStore'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
@@ -87,7 +88,8 @@ export function Home() {
 
   function start(minimal: boolean) {
     if (!routine) return
-    navigate(`/warmup/${routine.id}${minimal ? '?minimal=1' : ''}`)
+    useSessionTimerStore.getState().start(routine.id)
+    navigate(`/session-overview/${routine.id}${minimal ? '?minimal=1' : ''}`)
   }
 
   if (todayLog) {

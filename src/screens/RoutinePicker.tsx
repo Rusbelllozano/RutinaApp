@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom'
 import { useRoutineStore } from '../store/useRoutineStore'
 import { useRotationStore } from '../store/useRotationStore'
+import { useSessionTimerStore } from '../store/useSessionTimerStore'
 import type { Routine } from '../types/routine'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
+import { EditIcon } from '../components/ui/icons'
 
 const ROUTINE_DOT_CLASS: Record<string, string> = {
   'base-a': 'bg-routine-a',
@@ -55,11 +57,21 @@ export function RoutinePicker() {
                   <span className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
                   <span className="text-[15px] font-semibold text-text">{routine.name}</span>
                 </div>
-                {isNext && (
-                  <span className="flex-shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-ink">
-                    Siguiente
-                  </span>
-                )}
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  {isNext && (
+                    <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-ink">
+                      Siguiente
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Editar ${routine.name}`}
+                    onClick={() => navigate(`/routines/${routine.id}/edit`)}
+                    className="text-text-tertiary"
+                  >
+                    <EditIcon width={18} height={18} />
+                  </button>
+                </div>
               </div>
 
               {routine.muscleGroups.length > 0 && (
@@ -79,7 +91,14 @@ export function RoutinePicker() {
                 <span className="font-mono">~{durationMin} min</span>
               </div>
 
-              <Button onClick={() => navigate(`/session/${routine.id}`)}>Empezar</Button>
+              <Button
+                onClick={() => {
+                  useSessionTimerStore.getState().start(routine.id)
+                  navigate(`/session-overview/${routine.id}`)
+                }}
+              >
+                Empezar
+              </Button>
             </Card>
           )
         })}

@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useRoutineStore } from '../store/useRoutineStore'
 import { useExerciseStore } from '../store/useExerciseStore'
 import { useHistoryStore } from '../store/useHistoryStore'
 import { useRotationStore } from '../store/useRotationStore'
 import { useSettingsStore } from '../store/useSettingsStore'
-import { getBuildableWeights, getPlateBreakdown, nearestBuildable, describePlateBreakdown } from '../lib/plates'
+import { useSessionTimerStore, computeElapsedMs } from '../store/useSessionTimerStore'
+import { getBuildableWeights, getPlateBreakdown, clampToBuildable, describePlateBreakdown } from '../lib/plates'
 import { suggestProgression } from '../lib/progression'
 import { getRoutineColor } from '../lib/routineColor'
-import { todayISODate } from '../lib/date'
+import { todayISODate, formatDurationMMSS } from '../lib/date'
+import { exercisesForSession, effectiveSetsFor, repsRangeLabel } from '../lib/sessionRules'
+import { equipmentLabels } from '../lib/equipmentLabels'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -16,32 +19,12 @@ import { Chip } from '../components/ui/Chip'
 import { SectionLabel } from '../components/ui/SectionLabel'
 import { PlateDiagram } from '../components/ui/PlateDiagram'
 import { PlayIcon } from '../components/ui/icons'
-import type { LoggedSet, Routine, RoutineExercise, SessionLog, SessionLogExercise } from '../types/routine'
-
-/** Router `state` handed from Warmup to Session — matches the shape Warmup.tsx sends. */
-interface SessionFlowState {
-  /** Epoch ms when the warmup began — used to compute the logged session's duration. */
-  startedAt: number
-}
+import { SessionTimerBar } from '../components/SessionTimerBar'
+import type { LoggedSet, RoutineExercise, SessionLog, SessionLogExercise } from '../types/routine'
 
 /** Router `state` handed from Session to Cooldown — matches the shape Cooldown.tsx expects. */
 interface CooldownFlowState {
   sessionLog: SessionLog
-}
-
-const MIN_SESSION_EXERCISES = 3
-const MIN_SESSION_SETS = 2
-
-function sortedExercises(routine: Routine): RoutineExercise[] {
-  return [...routine.exercises].sort((a, b) => a.order - b.order)
-}
-
-/** Snaps a raw target weight onto the nearest weight the current plate inventory can build. */
-function clampToBuildable(weight: number | undefined, buildable: number[]): number | undefined {
-  if (weight === undefined || buildable.length === 0) return undefined
-  if (buildable.includes(weight)) return weight
-  const { below, above } = nearestBuildable(weight, buildable)
-  return below ?? above ?? undefined
 }
 
 /** Double progression's "+1 rep per set per week", read off the same set index last time. */
@@ -61,21 +44,6 @@ function suggestedReps(
   const last = lastLog?.sets[setIndex]?.reps
   if (last === undefined) return re.minReps
   return Math.min(re.maxReps, last + 1)
-}
-
-function repsRangeLabel(re: RoutineExercise): string {
-  if (re.durationSec !== undefined) {
-    return Array.isArray(re.durationSec) ? `${re.durationSec[0]}-${re.durationSec[1]} s` : `${re.durationSec} s`
-  }
-  if (re.minReps !== undefined && re.maxReps !== undefined) return `${re.minReps}-${re.maxReps} reps`
-  if (re.reps) return re.reps
-  return ''
-}
-
-function formatMMSS(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60)
-  const s = totalSeconds % 60
-  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 function appendSetToExercise(
@@ -157,7 +125,6 @@ export function Session() {
   const [searchParams] = useSearchParams()
   const minimal = searchParams.get('minimal') === '1'
   const navigate = useNavigate()
-  const location = useLocation()
 
   const routine = useRoutineStore((s) => (routineId ? s.getRoutineById(routineId) : undefined))
   const getExerciseById = useExerciseStore((s) => s.getExerciseById)
@@ -167,13 +134,7 @@ export function Session() {
   const equipment = useSettingsStore((s) => s.equipment)
   const soundEnabled = useSettingsStore((s) => s.soundEnabled)
 
-  const [startedAt] = useState<number>(() => (location.state as SessionFlowState | null)?.startedAt ?? Date.now())
-
-  const exercisesToRun = useMemo(() => {
-    if (!routine) return []
-    const sorted = sortedExercises(routine)
-    return minimal ? sorted.slice(0, MIN_SESSION_EXERCISES) : sorted
-  }, [routine, minimal])
+  const exercisesToRun = useMemo(() => (routine ? exercisesForSession(routine, minimal) : []), [routine, minimal])
 
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0)
   const [loggedExercises, setLoggedExercises] = useState<SessionLogExercise[]>([])
@@ -184,11 +145,7 @@ export function Session() {
 
   const routineExercise: RoutineExercise | undefined = exercisesToRun[currentExerciseIndex]
   const exercise = routineExercise ? getExerciseById(routineExercise.exerciseId) : undefined
-  const effectiveSets = routineExercise
-    ? minimal
-      ? Math.min(MIN_SESSION_SETS, routineExercise.sets)
-      : routineExercise.sets
-    : 0
+  const effectiveSets = routineExercise ? effectiveSetsFor(routineExercise, minimal) : 0
 
   const lastLog = routineExercise ? getLastLogForExercise(routineExercise.exerciseId) : undefined
   const suggestion = useMemo(
@@ -303,7 +260,7 @@ export function Session() {
   }
 
   function finalizeSession(finalExercises: SessionLogExercise[]) {
-    const durationMin = Math.max(1, Math.round((Date.now() - startedAt) / 60_000))
+    const durationMin = Math.max(1, Math.round(computeElapsedMs(useSessionTimerStore.getState()) / 60_000))
     const log = addLog({
       date: todayISODate(),
       routineId: routine!.id,
@@ -312,6 +269,7 @@ export function Session() {
       durationMin,
     })
     advanceAfter(routine!.id)
+    useSessionTimerStore.getState().reset()
     const state: CooldownFlowState = { sessionLog: log }
     navigate('/cooldown', { state })
   }
@@ -360,12 +318,16 @@ export function Session() {
           </span>
         }
       />
+      <SessionTimerBar />
 
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 pb-4 pt-3">
         <div className="flex flex-col gap-1.5">
           <div className="text-xl font-semibold">{exercise.name}</div>
-          <div className="text-sm text-text-secondary">
-            {effectiveSets} series × {repsRangeLabel(routineExercise)}
+          <div className="flex items-center gap-2 text-sm text-text-secondary">
+            <span>
+              {effectiveSets} series × {repsRangeLabel(routineExercise)}
+            </span>
+            <Chip>{equipmentLabels[equipmentType]}</Chip>
           </div>
           {exercise.video && (
             <a
@@ -462,7 +424,7 @@ export function Session() {
         {restRemaining !== null && (
           <Card className="flex flex-col items-center gap-3">
             <SectionLabel>DESCANSO</SectionLabel>
-            <div className="font-mono text-4xl font-semibold">{formatMMSS(restRemaining)}</div>
+            <div className="font-mono text-4xl font-semibold">{formatDurationMMSS(restRemaining)}</div>
             <Button variant="secondary" size="md" onClick={skipRest}>
               Saltar descanso
             </Button>
