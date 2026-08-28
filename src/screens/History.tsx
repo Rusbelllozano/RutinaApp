@@ -5,6 +5,7 @@ import { useRoutineStore } from '../store/useRoutineStore'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { SectionLabel } from '../components/ui/SectionLabel'
+import { SessionExerciseSets } from '../components/SessionExerciseSets'
 import { getRoutineColor } from '../lib/routineColor'
 import type { LoggedSet, SessionLog } from '../types/routine'
 
@@ -165,16 +166,14 @@ function SessionsTab() {
               {log.isMinimalVersion && <span className="text-accent">versión mínima</span>}
             </div>
 
-            <div className="flex flex-col gap-1.5 border-t border-border pt-3">
-              {log.exercises.map((e) => {
-                const exercise = getExerciseById(e.exerciseId)
-                return (
-                  <div key={e.exerciseId} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="text-text-secondary">{exercise?.name ?? 'Ejercicio eliminado'}</span>
-                    <span className="flex-shrink-0 font-mono text-text">{formatSets(e.sets)}</span>
-                  </div>
-                )
-              })}
+            <div className="flex flex-col gap-3 border-t border-border pt-3">
+              {log.exercises.map((e) => (
+                <SessionExerciseSets
+                  key={e.exerciseId}
+                  name={getExerciseById(e.exerciseId)?.name ?? 'Ejercicio eliminado'}
+                  sets={e.sets}
+                />
+              ))}
             </div>
           </Card>
         )
