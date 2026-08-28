@@ -8,6 +8,7 @@ import type { ScheduledRoutine, SessionLog } from '../types/routine'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { SectionLabel } from '../components/ui/SectionLabel'
+import { SessionExerciseSets } from '../components/SessionExerciseSets'
 import { ChevronLeftIcon, ChevronRightIcon, XIcon, CheckIcon, PlayIcon } from '../components/ui/icons'
 import { toISODate, todayISODate } from '../lib/date'
 import { getRoutineColor } from '../lib/routineColor'
@@ -283,22 +284,11 @@ function DoneSheet({ log, getRoutineById, getExerciseById }: DoneSheetProps) {
       )}
       <div className="flex flex-col gap-3">
         {log.exercises.map((ex) => (
-          <div key={ex.exerciseId} className="flex flex-col gap-1">
-            <div className="text-[14px] font-medium">{getExerciseById(ex.exerciseId)?.name ?? 'Ejercicio'}</div>
-            <div className="flex flex-wrap gap-1.5">
-              {ex.sets.map((set, i) => (
-                <span
-                  key={i}
-                  className="rounded-lg bg-bg-elevated-2 px-2 py-1 font-mono text-[12.5px] text-text-secondary"
-                >
-                  {set.weightKg != null ? `${set.weightKg}kg` : ''}
-                  {set.weightKg != null && set.reps != null ? ' × ' : ''}
-                  {set.reps != null ? `${set.reps}` : ''}
-                  {set.durationSec != null ? `${set.durationSec}s` : ''}
-                </span>
-              ))}
-            </div>
-          </div>
+          <SessionExerciseSets
+            key={ex.exerciseId}
+            name={getExerciseById(ex.exerciseId)?.name ?? 'Ejercicio'}
+            sets={ex.sets}
+          />
         ))}
       </div>
     </div>
