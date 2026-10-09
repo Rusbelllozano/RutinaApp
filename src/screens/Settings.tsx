@@ -1,9 +1,22 @@
 import { useRef, useState } from 'react'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { useRotationStore } from '../store/useRotationStore'
+import { useThemeStore, type ThemeId } from '../store/useThemeStore'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { SectionLabel } from '../components/ui/SectionLabel'
+
+/**
+ * Swatch shown per theme option, so the user can compare palettes before switching —
+ * literal hex since Tailwind's accent classes only reflect the currently-ACTIVE theme.
+ * Keep in sync with the `[data-theme="..."]` blocks in src/index.css.
+ */
+const THEMES: { id: ThemeId; label: string; swatch: string }[] = [
+  { id: 'oceano', label: 'Océano', swatch: '#6c93d8' },
+  { id: 'bosque', label: 'Bosque', swatch: '#6cd8a2' },
+  { id: 'atardecer', label: 'Atardecer', swatch: '#d89e6c' },
+  { id: 'violeta', label: 'Violeta', swatch: '#9e6cd8' },
+]
 
 /**
  * Every persisted Zustand store's localStorage key — confirmed from each store file's
@@ -28,6 +41,8 @@ export function Settings() {
   const setPlateQuantity = useSettingsStore((s) => s.setPlateQuantity)
   const toggleSound = useSettingsStore((s) => s.toggleSound)
   const resetRotation = useRotationStore((s) => s.resetRotation)
+  const theme = useThemeStore((s) => s.theme)
+  const setTheme = useThemeStore((s) => s.setTheme)
 
   const [importError, setImportError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -88,6 +103,26 @@ export function Settings() {
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-5 pb-6 pt-7">
       <div className="text-lg font-semibold">Ajustes</div>
+
+      <Card className="flex flex-col gap-3">
+        <SectionLabel>Apariencia</SectionLabel>
+        <div className="grid grid-cols-2 gap-2">
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              aria-pressed={theme === t.id}
+              onClick={() => setTheme(t.id)}
+              className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left ${
+                theme === t.id ? 'border-accent bg-bg-elevated-2' : 'border-border'
+              }`}
+            >
+              <span className="h-4 w-4 flex-shrink-0 rounded-full" style={{ backgroundColor: t.swatch }} />
+              <span className="text-sm text-text">{t.label}</span>
+            </button>
+          ))}
+        </div>
+      </Card>
 
       <Card className="flex flex-col gap-4">
         <SectionLabel>Equipo</SectionLabel>

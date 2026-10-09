@@ -152,6 +152,7 @@ export function Session() {
   const [progressionAccepted, setProgressionAccepted] = useState(false)
   const [progressionDismissed, setProgressionDismissed] = useState(false)
   const [restRemaining, setRestRemaining] = useState<number | null>(null)
+  const [restPaused, setRestPaused] = useState(false)
   const pendingAdvanceRef = useRef<{ nextExercise: boolean } | null>(null)
 
   const routineExercise: RoutineExercise | undefined = exercisesToRun[currentExerciseIndex]
@@ -223,9 +224,11 @@ export function Session() {
     return Array.isArray(d) ? Math.round((d[0] + d[1]) / 2) : d
   }, [showsDuration, routineExercise])
 
-  // Rest timer countdown — ticks every second, plays sound/vibration and advances on completion.
+  // Rest timer countdown — ticks every second, plays sound/vibration and advances on
+  // completion. Paused by just not scheduling the next tick, so restRemaining freezes
+  // wherever it was and resumes from there once restPaused flips back.
   useEffect(() => {
-    if (restRemaining === null) return
+    if (restRemaining === null || restPaused) return
     if (restRemaining <= 0) {
       if (soundEnabled) playRestEndSound()
       if ('vibrate' in navigator) navigator.vibrate(200)
@@ -237,7 +240,7 @@ export function Session() {
     }
     const t = setTimeout(() => setRestRemaining((r) => (r ?? 1) - 1), 1000)
     return () => clearTimeout(t)
-  }, [restRemaining, soundEnabled])
+  }, [restRemaining, restPaused, soundEnabled])
 
   if (!routine) {
     return (
@@ -304,6 +307,7 @@ export function Session() {
     }
 
     pendingAdvanceRef.current = { nextExercise: isLastSetOfExercise }
+    setRestPaused(false)
     setRestRemaining(routineExercise!.restSec)
   }
 
@@ -312,6 +316,7 @@ export function Session() {
     const pending = pendingAdvanceRef.current
     pendingAdvanceRef.current = null
     setRestRemaining(null)
+    setRestPaused(false)
     if (pending?.nextExercise) setCurrentExerciseIndex((i) => i + 1)
   }
 
@@ -327,6 +332,7 @@ export function Session() {
     if (restRemaining !== null) {
       pendingAdvanceRef.current = null
       setRestRemaining(null)
+      setRestPaused(false)
     }
   }
 
@@ -459,11 +465,18 @@ export function Session() {
 
         {restRemaining !== null && (
           <Card className="flex flex-col items-center gap-3">
-            <SectionLabel>DESCANSO</SectionLabel>
-            <div className="font-mono text-4xl font-semibold">{formatDurationMMSS(restRemaining)}</div>
-            <Button variant="secondary" size="md" onClick={skipRest}>
-              Saltar descanso
-            </Button>
+            <SectionLabel>{restPaused ? 'DESCANSO · EN PAUSA' : 'DESCANSO'}</SectionLabel>
+            <div className={`font-mono text-4xl font-semibold ${restPaused ? 'text-text-tertiary' : ''}`}>
+              {formatDurationMMSS(restRemaining)}
+            </div>
+            <div className="flex gap-3">
+              <Button variant="secondary" size="md" onClick={() => setRestPaused((p) => !p)}>
+                {restPaused ? 'Reanudar' : 'Pausar'}
+              </Button>
+              <Button variant="secondary" size="md" onClick={skipRest}>
+                Saltar descanso
+              </Button>
+            </div>
           </Card>
         )}
 

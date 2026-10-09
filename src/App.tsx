@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Layout } from './components/Layout'
+import { useThemeStore } from './store/useThemeStore'
 import { Home } from './screens/Home'
 import { Warmup } from './screens/Warmup'
 import { Session } from './screens/Session'
@@ -17,6 +19,15 @@ import { SessionOverview } from './screens/SessionOverview'
 import { PlateSetup } from './screens/PlateSetup'
 
 function App() {
+  const theme = useThemeStore((s) => s.theme)
+
+  // Applied to <html> so every `var(--color-*)` utility (see src/index.css's
+  // `[data-theme="..."]` blocks) picks up the chosen palette, including outside the
+  // router-rendered tree (e.g. the browser's own scrollbar via color-scheme).
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
+
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-bg text-text">
