@@ -58,6 +58,17 @@ function appendSetToExercise(
   return updated
 }
 
+/** Reverts the most recently confirmed set for one exercise — the undo counterpart to `appendSetToExercise`. */
+function removeLastSetFromExercise(list: SessionLogExercise[], exerciseId: string): SessionLogExercise[] {
+  const idx = list.findIndex((e) => e.exerciseId === exerciseId)
+  if (idx === -1 || list[idx].sets.length === 0) return list
+  const remainingSets = list[idx].sets.slice(0, -1)
+  if (remainingSets.length === 0) return list.filter((_, i) => i !== idx)
+  const updated = [...list]
+  updated[idx] = { ...updated[idx], sets: remainingSets }
+  return updated
+}
+
 function playRestEndSound() {
   try {
     const Ctor =
@@ -304,6 +315,21 @@ export function Session() {
     if (pending?.nextExercise) setCurrentExerciseIndex((i) => i + 1)
   }
 
+  /**
+   * Reverts the set just confirmed for the current exercise — the one-tap "deshacer" for a
+   * mis-tapped weight/reps. Only reaches sets on the exercise you're still on: once you've
+   * advanced to the next exercise, `doneCount` for it starts back at 0, so there's nothing
+   * to undo into the previous one (editing a finalized session is out of scope).
+   */
+  function undoLastSet() {
+    if (doneCount === 0) return
+    setLoggedExercises((prev) => removeLastSetFromExercise(prev, exercise!.id))
+    if (restRemaining !== null) {
+      pendingAdvanceRef.current = null
+      setRestRemaining(null)
+    }
+  }
+
   const breakdown = showsWeight && draftWeight !== undefined ? getPlateBreakdown(equipmentType, draftWeight, equipment) : null
   const canConfirm = doneCount < effectiveSets && restRemaining === null
 
@@ -420,6 +446,16 @@ export function Session() {
             )
           })}
         </div>
+
+        {doneCount > 0 && (
+          <button
+            type="button"
+            onClick={undoLastSet}
+            className="py-1 text-center text-sm font-medium text-text-secondary"
+          >
+            Deshacer última serie
+          </button>
+        )}
 
         {restRemaining !== null && (
           <Card className="flex flex-col items-center gap-3">
