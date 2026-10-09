@@ -58,6 +58,17 @@ function appendSetToExercise(
   return updated
 }
 
+/** Reverts the most recently confirmed set for one exercise — the undo counterpart to `appendSetToExercise`. */
+function removeLastSetFromExercise(list: SessionLogExercise[], exerciseId: string): SessionLogExercise[] {
+  const idx = list.findIndex((e) => e.exerciseId === exerciseId)
+  if (idx === -1 || list[idx].sets.length === 0) return list
+  const remainingSets = list[idx].sets.slice(0, -1)
+  if (remainingSets.length === 0) return list.filter((_, i) => i !== idx)
+  const updated = [...list]
+  updated[idx] = { ...updated[idx], sets: remainingSets }
+  return updated
+}
+
 function playRestEndSound() {
   try {
     const Ctor =
@@ -141,6 +152,7 @@ export function Session() {
   const [progressionAccepted, setProgressionAccepted] = useState(false)
   const [progressionDismissed, setProgressionDismissed] = useState(false)
   const [restRemaining, setRestRemaining] = useState<number | null>(null)
+  const [restPaused, setRestPaused] = useState(false)
   const pendingAdvanceRef = useRef<{ nextExercise: boolean } | null>(null)
 
   const routineExercise: RoutineExercise | undefined = exercisesToRun[currentExerciseIndex]
@@ -212,9 +224,11 @@ export function Session() {
     return Array.isArray(d) ? Math.round((d[0] + d[1]) / 2) : d
   }, [showsDuration, routineExercise])
 
-  // Rest timer countdown — ticks every second, plays sound/vibration and advances on completion.
+  // Rest timer countdown — ticks every second, plays sound/vibration and advances on
+  // completion. Paused by just not scheduling the next tick, so restRemaining freezes
+  // wherever it was and resumes from there once restPaused flips back.
   useEffect(() => {
-    if (restRemaining === null) return
+    if (restRemaining === null || restPaused) return
     if (restRemaining <= 0) {
       if (soundEnabled) playRestEndSound()
       if ('vibrate' in navigator) navigator.vibrate(200)
@@ -226,7 +240,7 @@ export function Session() {
     }
     const t = setTimeout(() => setRestRemaining((r) => (r ?? 1) - 1), 1000)
     return () => clearTimeout(t)
-  }, [restRemaining, soundEnabled])
+  }, [restRemaining, restPaused, soundEnabled])
 
   if (!routine) {
     return (
@@ -293,6 +307,7 @@ export function Session() {
     }
 
     pendingAdvanceRef.current = { nextExercise: isLastSetOfExercise }
+    setRestPaused(false)
     setRestRemaining(routineExercise!.restSec)
   }
 
@@ -301,7 +316,24 @@ export function Session() {
     const pending = pendingAdvanceRef.current
     pendingAdvanceRef.current = null
     setRestRemaining(null)
+    setRestPaused(false)
     if (pending?.nextExercise) setCurrentExerciseIndex((i) => i + 1)
+  }
+
+  /**
+   * Reverts the set just confirmed for the current exercise — the one-tap "deshacer" for a
+   * mis-tapped weight/reps. Only reaches sets on the exercise you're still on: once you've
+   * advanced to the next exercise, `doneCount` for it starts back at 0, so there's nothing
+   * to undo into the previous one (editing a finalized session is out of scope).
+   */
+  function undoLastSet() {
+    if (doneCount === 0) return
+    setLoggedExercises((prev) => removeLastSetFromExercise(prev, exercise!.id))
+    if (restRemaining !== null) {
+      pendingAdvanceRef.current = null
+      setRestRemaining(null)
+      setRestPaused(false)
+    }
   }
 
   const breakdown = showsWeight && draftWeight !== undefined ? getPlateBreakdown(equipmentType, draftWeight, equipment) : null
@@ -421,13 +453,30 @@ export function Session() {
           })}
         </div>
 
+        {doneCount > 0 && (
+          <button
+            type="button"
+            onClick={undoLastSet}
+            className="py-1 text-center text-sm font-medium text-text-secondary"
+          >
+            Deshacer última serie
+          </button>
+        )}
+
         {restRemaining !== null && (
           <Card className="flex flex-col items-center gap-3">
-            <SectionLabel>DESCANSO</SectionLabel>
-            <div className="font-mono text-4xl font-semibold">{formatDurationMMSS(restRemaining)}</div>
-            <Button variant="secondary" size="md" onClick={skipRest}>
-              Saltar descanso
-            </Button>
+            <SectionLabel>{restPaused ? 'DESCANSO · EN PAUSA' : 'DESCANSO'}</SectionLabel>
+            <div className={`font-mono text-4xl font-semibold ${restPaused ? 'text-text-tertiary' : ''}`}>
+              {formatDurationMMSS(restRemaining)}
+            </div>
+            <div className="flex gap-3">
+              <Button variant="secondary" size="md" onClick={() => setRestPaused((p) => !p)}>
+                {restPaused ? 'Reanudar' : 'Pausar'}
+              </Button>
+              <Button variant="secondary" size="md" onClick={skipRest}>
+                Saltar descanso
+              </Button>
+            </div>
           </Card>
         )}
 

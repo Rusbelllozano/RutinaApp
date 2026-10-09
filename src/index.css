@@ -25,6 +25,52 @@
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 }
 
+/*
+ * Alternate full themes (background ramp + accent together), picked in Ajustes and
+ * applied as `data-theme` on <html> (see src/App.tsx). Each palette is the "Océano"
+ * ramp above with its hue rotated and lightness/saturation kept identical, so contrast
+ * stays the same — only the tint changes. Deliberately outside `@theme`/`@layer`: an
+ * unlayered rule always wins over a `@layer theme` one regardless of selector
+ * specificity, which is what lets this override the defaults above at runtime.
+ * Routine A/B/C colors and --color-danger stay fixed across all themes on purpose —
+ * they're a stable identity for the rotation, not part of the app's "mood".
+ */
+[data-theme='bosque'] {
+  --color-bg: #141c18;
+  --color-bg-elevated: #1b2621;
+  --color-bg-elevated-2: #23332b;
+  --color-border: #2b3d34;
+  --color-text: #eef5f2;
+  --color-text-secondary: #a7bdb2;
+  --color-text-tertiary: #70887c;
+  --color-accent: #6cd8a2;
+  --color-accent-ink: #102b1e;
+}
+
+[data-theme='atardecer'] {
+  --color-bg: #1c1814;
+  --color-bg-elevated: #26201b;
+  --color-bg-elevated-2: #332a23;
+  --color-border: #3d332b;
+  --color-text: #f5f1ee;
+  --color-text-secondary: #bdb1a7;
+  --color-text-tertiary: #887b70;
+  --color-accent: #d89e6c;
+  --color-accent-ink: #2b1d10;
+}
+
+[data-theme='violeta'] {
+  --color-bg: #18141c;
+  --color-bg-elevated: #201b26;
+  --color-bg-elevated-2: #2a2333;
+  --color-border: #332b3d;
+  --color-text: #f1eef5;
+  --color-text-secondary: #b1a7bd;
+  --color-text-tertiary: #7b7088;
+  --color-accent: #9e6cd8;
+  --color-accent-ink: #1d102b;
+}
+
 :root {
   color-scheme: dark;
 }

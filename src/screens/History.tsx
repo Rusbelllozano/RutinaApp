@@ -7,6 +7,7 @@ import { Chip } from '../components/ui/Chip'
 import { SectionLabel } from '../components/ui/SectionLabel'
 import { SessionExerciseSets } from '../components/SessionExerciseSets'
 import { getRoutineColor } from '../lib/routineColor'
+import { isoDateDaysAgo } from '../lib/date'
 import type { LoggedSet, SessionLog } from '../types/routine'
 
 interface ChartPoint {
@@ -14,11 +15,12 @@ interface ChartPoint {
   maxWeight: number
 }
 
-type Tab = 'exercise' | 'sessions'
+type Tab = 'exercise' | 'sessions' | 'volume'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'exercise', label: 'Por ejercicio' },
-  { id: 'sessions', label: 'Sesiones completas' },
+  { id: 'sessions', label: 'Sesiones' },
+  { id: 'volume', label: 'Volumen' },
 ]
 
 /** History/HANDOFF.md §5.6: per-exercise progress, and every completed session in full. */
@@ -44,7 +46,7 @@ export function History() {
         ))}
       </div>
 
-      {tab === 'exercise' ? <ByExerciseTab /> : <SessionsTab />}
+      {tab === 'exercise' ? <ByExerciseTab /> : tab === 'sessions' ? <SessionsTab /> : <VolumeTab />}
     </div>
   )
 }
@@ -178,6 +180,56 @@ function SessionsTab() {
           </Card>
         )
       })}
+    </div>
+  )
+}
+
+/**
+ * Series totales por grupo muscular en los últimos 7 días — una serie cuenta para cada
+ * grupo que el ejercicio tiene etiquetado. Solo lectura, sin gráfico nuevo: un listado
+ * plano ordenado de mayor a menor, mismo estilo que el resto de la app.
+ */
+function VolumeTab() {
+  const logs = useHistoryStore((s) => s.logs)
+  const getExerciseById = useExerciseStore((s) => s.getExerciseById)
+
+  const cutoff = isoDateDaysAgo(6)
+
+  const volumeByMuscle = useMemo(() => {
+    const totals = new Map<string, number>()
+    for (const log of logs) {
+      if (log.date < cutoff) continue
+      for (const entry of log.exercises) {
+        const exercise = getExerciseById(entry.exerciseId)
+        if (!exercise) continue
+        for (const group of exercise.muscleGroups) {
+          totals.set(group, (totals.get(group) ?? 0) + entry.sets.length)
+        }
+      }
+    }
+    return [...totals.entries()].sort((a, b) => b[1] - a[1])
+  }, [logs, getExerciseById, cutoff])
+
+  return (
+    <div className="flex flex-col gap-3">
+      <SectionLabel>Últimos 7 días</SectionLabel>
+      {volumeByMuscle.length === 0 ? (
+        <div className="text-sm text-text-tertiary">Todavía no hay series registradas esta semana.</div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {volumeByMuscle.map(([group, sets]) => (
+            <div
+              key={group}
+              className="flex items-center justify-between rounded-xl bg-bg-elevated px-4 py-3"
+            >
+              <span className="text-sm capitalize text-text">{group}</span>
+              <span className="font-mono text-sm text-text-secondary">
+                {sets} {sets === 1 ? 'serie' : 'series'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

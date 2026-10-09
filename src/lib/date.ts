@@ -11,6 +11,13 @@ export function todayISODate(): string {
   return toISODate(new Date())
 }
 
+/** ISO date `days` ago (0 = today) — used to window queries like "last 7 days". */
+export function isoDateDaysAgo(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - days)
+  return toISODate(d)
+}
+
 /** Formats a duration in seconds as `m:ss` (or `mm:ss` etc.) — no hour rollover, sessions are short. */
 export function formatDurationMMSS(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
