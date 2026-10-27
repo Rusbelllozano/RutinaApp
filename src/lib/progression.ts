@@ -1,5 +1,4 @@
-import type { RoutineExercise } from '../types/routine'
-import type { SessionLogExercise } from '../types/routine'
+import type { RoutineExercise, SessionLog, SessionLogExercise } from '../types/routine'
 
 export const MIN_WEIGHT_JUMP_KG = 2.5
 
@@ -42,6 +41,43 @@ export function suggestProgression(
     atTopOfRange,
     increasedWeightKg: atTopOfRange && lastWeight !== undefined ? round2(lastWeight + MIN_WEIGHT_JUMP_KG) : undefined,
   }
+}
+
+export interface LastExerciseLog {
+  entry: SessionLogExercise
+  routineId: string
+  date: string
+}
+
+/** Most recent logged entry for `exerciseId`, optionally restricted to one routine. `logs` is oldest-first. */
+export function findLastExerciseLog(
+  logs: SessionLog[],
+  exerciseId: string,
+  routineId?: string,
+): LastExerciseLog | undefined {
+  for (let i = logs.length - 1; i >= 0; i--) {
+    const log = logs[i]
+    if (routineId !== undefined && log.routineId !== routineId) continue
+    const entry = log.exercises.find((e) => e.exerciseId === exerciseId)
+    if (entry) return { entry, routineId: log.routineId, date: log.date }
+  }
+  return undefined
+}
+
+/**
+ * The log double progression compares against (docs/specs/05-pro-mode.md, "Changes to
+ * earlier specs"): the last time this exercise was done **in this routine**, falling
+ * back to the last time in any routine. PRO repeats some exercises at deliberately
+ * different loads in one week (glute bridge 31 kg Tue / 41 kg Fri), so each slot follows
+ * its own history; the fallback keeps progress continuous across modes (the first PRO
+ * squat continues from the last Base squat).
+ */
+export function findProgressionLog(
+  logs: SessionLog[],
+  exerciseId: string,
+  routineId: string,
+): LastExerciseLog | undefined {
+  return findLastExerciseLog(logs, exerciseId, routineId) ?? findLastExerciseLog(logs, exerciseId)
 }
 
 function round2(n: number): number {

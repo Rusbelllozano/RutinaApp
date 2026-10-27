@@ -4,6 +4,8 @@ import { useCalendarStore } from '../store/useCalendarStore'
 import { useHistoryStore } from '../store/useHistoryStore'
 import { useRoutineStore } from '../store/useRoutineStore'
 import { useExerciseStore } from '../store/useExerciseStore'
+import { useModeStore } from '../store/useModeStore'
+import { parseISODate, proRoutineForDate, routinesForMode } from '../lib/proSchedule'
 import type { ScheduledRoutine, SessionLog } from '../types/routine'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -55,6 +57,10 @@ type DayStatus =
   | { kind: 'done'; log: SessionLog }
   | { kind: 'planned'; entry: ScheduledRoutine }
   | { kind: 'rest'; entry: ScheduledRoutine }
+  /** PRO only: today/future weekday, filled from the weekly schedule — read-only. */
+  | { kind: 'auto'; routineId: string }
+  /** PRO only: today/future weekend day. */
+  | { kind: 'autoRest' }
   | { kind: 'blank' }
 
 function formatLongDate(iso: string): string {
@@ -73,7 +79,10 @@ export function Calendar() {
   const markRest = useCalendarStore((s) => s.markRest)
   const clearDate = useCalendarStore((s) => s.clearDate)
   const logs = useHistoryStore((s) => s.logs)
-  const routines = useRoutineStore((s) => s.routines)
+  const allRoutines = useRoutineStore((s) => s.routines)
+  const mode = useModeStore((s) => s.mode)
+  const isPro = mode === 'pro'
+  const routines = routinesForMode(allRoutines, mode)
   const getRoutineById = useRoutineStore((s) => s.getRoutineById)
   const getExerciseById = useExerciseStore((s) => s.getExerciseById)
 
@@ -89,9 +98,18 @@ export function Calendar() {
     return map
   }, [scheduled])
 
-  function getDayStatus(iso: string): DayStatus {
+  function getDayStatus(iso: string, date: Date): DayStatus {
+    // History is shared, so past sessions from either mode always show.
     const log = logsByDate.get(iso)
     if (log) return { kind: 'done', log }
+    // PRO: the date decides the routine (docs/specs/05-pro-mode.md, "Calendar in PRO") —
+    // no manual planning, and Base's planned entries aren't shown. A past weekday with
+    // no session is just blank, never "missed".
+    if (isPro) {
+      if (iso < TODAY_ISO) return { kind: 'blank' }
+      const routine = proRoutineForDate(allRoutines, date)
+      return routine ? { kind: 'auto', routineId: routine.id } : { kind: 'autoRest' }
+    }
     const entry = scheduledByDate.get(iso)
     if (entry?.status === 'planned') return { kind: 'planned', entry }
     if (entry?.status === 'rest') return { kind: 'rest', entry }
@@ -100,20 +118,32 @@ export function Calendar() {
 
   const grid = useMemo(() => buildMonthGrid(viewYear, viewMonth), [viewYear, viewMonth])
 
+  // History is shared across modes, so the viewed month can show sessions from the other
+  // mode's routines — list those in the legend too, after the active mode's own.
+  const legendRoutines = useMemo(() => {
+    const monthPrefix = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-`
+    const shown = new Set(routines.map((r) => r.id))
+    const extra = allRoutines.filter(
+      (r) => !shown.has(r.id) && logs.some((l) => l.routineId === r.id && l.date.startsWith(monthPrefix)),
+    )
+    return [...routines, ...extra]
+  }, [routines, allRoutines, logs, viewYear, viewMonth])
+
   function goToMonth(delta: number) {
     const next = new Date(viewYear, viewMonth + delta, 1)
     setViewYear(next.getFullYear())
     setViewMonth(next.getMonth())
   }
 
-  function openDay(iso: string, status: DayStatus) {
+  /** Only logged days open a sheet in PRO; in Base, any day except a blank past one. */
+  function isDayTappable(iso: string, status: DayStatus): boolean {
+    if (isPro) return status.kind === 'done'
     // A blank day before today has no data and nothing to plan retroactively —
     // rendered the same as any other blank day, just not tappable.
-    if (status.kind === 'blank' && iso < TODAY_ISO) return
-    setSheetDate(iso)
+    return !(status.kind === 'blank' && iso < TODAY_ISO)
   }
 
-  const sheetStatus = sheetDate ? getDayStatus(sheetDate) : null
+  const sheetStatus = sheetDate ? getDayStatus(sheetDate, parseISODate(sheetDate)) : null
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-5 pb-3 pt-7">
@@ -152,21 +182,27 @@ export function Calendar() {
           {grid.map((cell, i) => {
             if (!cell) return <div key={i} />
 
-            const status = getDayStatus(cell.iso)
+            const status = getDayStatus(cell.iso, cell.date)
             const isToday = cell.iso === TODAY_ISO
             const isPast = cell.iso < TODAY_ISO
-            const isTappable = status.kind !== 'blank' || !isPast
+            const isTappable = isDayTappable(cell.iso, status)
 
             const routineId =
-              status.kind === 'done' ? status.log.routineId : status.kind === 'planned' ? status.entry.routineId : undefined
+              status.kind === 'done'
+                ? status.log.routineId
+                : status.kind === 'planned'
+                  ? status.entry.routineId
+                  : status.kind === 'auto'
+                    ? status.routineId
+                    : undefined
             const color = getRoutineColor(routineId)
 
             let cellClasses = 'text-text-tertiary bg-transparent'
             if (status.kind === 'done') {
               cellClasses = `${color.bg} text-bg font-semibold`
-            } else if (status.kind === 'planned') {
+            } else if (status.kind === 'planned' || status.kind === 'auto') {
               cellClasses = `border ${color.border} ${color.text} font-medium`
-            } else if (status.kind === 'rest') {
+            } else if (status.kind === 'rest' || status.kind === 'autoRest') {
               cellClasses = 'bg-bg-elevated-2 text-text-secondary font-medium'
             } else if (!isPast) {
               cellClasses = 'text-text font-medium'
@@ -177,7 +213,7 @@ export function Calendar() {
                 key={i}
                 type="button"
                 disabled={!isTappable}
-                onClick={() => openDay(cell.iso, status)}
+                onClick={() => setSheetDate(cell.iso)}
                 className={`relative flex h-10 flex-col items-center justify-center rounded-xl text-[13px] ${cellClasses} ${
                   isToday ? 'ring-1 ring-accent' : ''
                 } ${!isTappable ? 'cursor-default' : ''}`}
@@ -190,10 +226,17 @@ export function Calendar() {
         </div>
       </Card>
 
+      {isPro && (
+        <div className="text-sm text-text-secondary">
+          En modo PRO el calendario sigue la semana: de lunes a viernes, un día fijo cada uno; el fin de semana,
+          descanso.
+        </div>
+      )}
+
       <Card className="flex flex-col gap-2.5 p-4">
         <SectionLabel>Leyenda</SectionLabel>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
-          {routines.map((routine) => {
+          {legendRoutines.map((routine) => {
             const color = getRoutineColor(routine.id)
             return (
               <div key={routine.id} className="flex items-center gap-1.5 text-[13px] text-text-secondary">
@@ -234,7 +277,7 @@ export function Calendar() {
 
             {sheetStatus.kind === 'done' ? (
               <DoneSheet log={sheetStatus.log} getRoutineById={getRoutineById} getExerciseById={getExerciseById} />
-            ) : (
+            ) : sheetStatus.kind === 'auto' || sheetStatus.kind === 'autoRest' ? null : (
               <PlanSheet
                 iso={sheetDate}
                 status={sheetStatus}

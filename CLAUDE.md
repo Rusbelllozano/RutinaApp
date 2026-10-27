@@ -13,7 +13,10 @@ of the HANDOFF's v1 scope — a standalone weight calculator, an exercise librar
 exercises), a routine calendar (history + planning), and a routine picker (start any
 routine, not just the auto-suggested one). Read `docs/specs/00-overview.md` first — it
 explains the data model change (`WorkoutDay` → `Routine`, exercises become a shared
-catalog) that all four specs depend on.
+catalog) that all four specs depend on. `docs/specs/05-pro-mode.md` adds a fifth: a
+switchable PRO mode (5-day Mon–Fri split, own fixed theme) that shares the exercise
+catalog and history with the default Base mode, and amends the progression-lookup and
+seeding rules of `00-overview.md`.
 
 **Design system:** `docs/DESIGN.md` has the color/type/component tokens for every
 screen — dark theme, one muted blue accent, flat blocks with no shadows, IBM Plex Sans +
@@ -29,9 +32,12 @@ Don't translate strings inside `src/data/program.ts` or any rendered copy.
 
 ## Current status
 
-Initial scaffold. The toolchain, types, program data, and a settings store exist.
-**Screens and business logic are not built yet** (rotation, plate calculator, double
-progression, rest timer, history). See "Next steps".
+The v1 flow and the four specs in `docs/specs/01-04` are built, and so is PRO mode
+(`docs/specs/05-pro-mode.md`): the Base | PRO switch on Home, the date-driven PRO week
+(`src/data/proProgram.ts`, `src/lib/proSchedule.ts`), loads stored as plate
+configurations (`src/lib/initialLoad.ts`), per-routine progression lookup, the cycle
+goal, and the `claro`/`pro` themes. Deload (HANDOFF §3.4) and the load ceiling
+(HANDOFF §7) are still not built.
 
 ## Stack
 
@@ -154,10 +160,13 @@ catalog/routine model from `docs/specs/00-overview.md` instead of a flat day lis
 7. History with a simple chart per exercise, and the routine calendar
    (`docs/specs/03-routine-calendar.md`).
 8. Settings: barbell/dumbbell weights, plate inventory, sound, reset rotation.
-9. Export/import the full state as JSON — must cover all six persisted stores, not just
-   settings.
+9. Export/import the full state as JSON — must cover every persisted store except the
+   transient session timer (nine since PRO mode), with a `schemaVersion`.
 10. Load ceiling (HANDOFF section 7): alternate progression variants once an exercise has
     spent 3 weeks at the max buildable weight.
+11. ~~PRO mode~~ — done (`docs/specs/05-pro-mode.md`). Seed changes reach existing users
+    through the `persist` migration in `src/lib/seedMigration.ts`: bump
+    `SEED_STORE_VERSION` whenever seed data or seed corrections change.
 
 Before calling a feature done, check it against the acceptance criteria in HANDOFF
 section 8 and in the relevant `docs/specs/*.md` file — those are this project's

@@ -2,18 +2,15 @@ import { useNavigate } from 'react-router-dom'
 import { useRoutineStore } from '../store/useRoutineStore'
 import { useRotationStore } from '../store/useRotationStore'
 import { useSessionTimerStore } from '../store/useSessionTimerStore'
+import { useModeStore } from '../store/useModeStore'
+import { proRoutineForDate, routinesForMode } from '../lib/proSchedule'
+import { getRoutineColor } from '../lib/routineColor'
 import type { Routine } from '../types/routine'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { EditIcon } from '../components/ui/icons'
-
-const ROUTINE_DOT_CLASS: Record<string, string> = {
-  'base-a': 'bg-routine-a',
-  'base-b': 'bg-routine-b',
-  'base-c': 'bg-routine-c',
-}
 
 /** Muscle-group tags shown per card, matching docs/specs/04-routine-picker.md's "2-3 tags". */
 const MAX_MUSCLE_GROUP_CHIPS = 3
@@ -35,11 +32,19 @@ function estimateDurationMin(routine: Routine): number {
   return Math.max(5, Math.round(minutes / 5) * 5)
 }
 
-/** docs/specs/04-routine-picker.md: list every routine, tap to start it directly. */
+/**
+ * docs/specs/04-routine-picker.md: list every routine of the active mode (plus custom
+ * ones), tap to start it directly. In PRO, starting another weekday's routine logs it
+ * normally but never changes what Home suggests — that only follows the date
+ * (docs/specs/05-pro-mode.md, "Routine picker in PRO").
+ */
 export function RoutinePicker() {
   const navigate = useNavigate()
-  const routines = useRoutineStore((s) => s.routines)
-  const nextRoutineId = useRotationStore((s) => s.getNextRoutineId())
+  const mode = useModeStore((s) => s.mode)
+  const allRoutines = useRoutineStore((s) => s.routines)
+  const rotationNextId = useRotationStore((s) => s.getNextRoutineId())
+  const routines = routinesForMode(allRoutines, mode)
+  const nextRoutineId = mode === 'pro' ? proRoutineForDate(allRoutines, new Date())?.id : rotationNextId
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
@@ -47,7 +52,7 @@ export function RoutinePicker() {
       <div className="flex flex-1 flex-col gap-4 px-5 pb-6 pt-3">
         {routines.map((routine) => {
           const isNext = routine.id === nextRoutineId
-          const dotClass = ROUTINE_DOT_CLASS[routine.id] ?? 'bg-accent'
+          const dotClass = getRoutineColor(routine.id).bg
           const durationMin = estimateDurationMin(routine)
 
           return (
@@ -60,7 +65,7 @@ export function RoutinePicker() {
                 <div className="flex flex-shrink-0 items-center gap-2">
                   {isNext && (
                     <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-ink">
-                      Siguiente
+                      {mode === 'pro' ? 'Hoy' : 'Siguiente'}
                     </span>
                   )}
                   <button

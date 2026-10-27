@@ -180,6 +180,12 @@ Suggested structure. Field names match `src/types/program.ts` and
 alternatives) — they're UI content for the Spanish-speaking end user. Initial loads are
 already calculated for the real inventory and ordered to minimize plate changes.
 
+Weights are handle + plates, collars not counted (a dumbbell with 2.5 kg per end is
+1.5 + 2 × 2.5 = 6.5 kg). The dumbbell numbers below were corrected to that convention
+with the PRO mode feature — they had assumed a 2 kg handle; the plates are unchanged.
+A second, switchable program (PRO mode) lives in `src/data/proProgram.ts` — see
+`docs/specs/05-pro-mode.md`.
+
 ```json
 {
   "equipment": {
@@ -222,9 +228,9 @@ already calculated for the real inventory and ordered to minimize plate changes.
         {
           "order": 1, "name": "Press de pecho en piso con mancuernas",
           "sets": 4, "minReps": 8, "maxReps": 12, "restSec": 90,
-          "equipment": "dumbbell_pair", "initialWeightKg": 12,
+          "equipment": "dumbbell_pair", "initialWeightKg": 11.5,
           "plateNote": "5 kg en cada extremo",
-          "alternative": "Si no llegas a 8 reps limpias, baja a 9.5 kg (2.5 + 1.25 por extremo)",
+          "alternative": "Si no llegas a 8 reps limpias, baja a 9 kg (2.5 + 1.25 por extremo)",
           "video": "https://www.youtube.com/results?search_query=press+en+piso+con+mancuernas+tecnica",
           "note": "Baja hasta que el codo toque el suelo, pausa 1 s, sube."
         },
@@ -237,21 +243,21 @@ already calculated for the real inventory and ordered to minimize plate changes.
         {
           "order": 3, "name": "Aperturas en piso con mancuernas",
           "sets": 3, "minReps": 12, "maxReps": 15, "restSec": 60,
-          "equipment": "dumbbell_pair", "initialWeightKg": 7, "plateNote": "2.5 kg en cada extremo",
+          "equipment": "dumbbell_pair", "initialWeightKg": 6.5, "plateNote": "2.5 kg en cada extremo",
           "video": "https://www.youtube.com/results?search_query=aperturas+en+piso+con+mancuernas"
         },
         {
           "order": 4, "name": "Elevaciones laterales",
           "sets": 3, "minReps": 12, "maxReps": 15, "restSec": 60,
-          "equipment": "dumbbell_pair", "initialWeightKg": 4.5, "plateNote": "1.25 kg en cada extremo",
-          "alternative": "Si los hombros se van hacia arriba, usa las barras solas (~2 kg)",
+          "equipment": "dumbbell_pair", "initialWeightKg": 4, "plateNote": "1.25 kg en cada extremo",
+          "alternative": "Si los hombros se van hacia arriba, usa las barras solas (~1.5 kg)",
           "video": "https://www.youtube.com/results?search_query=elevaciones+laterales+con+mancuernas+tecnica"
         },
         {
           "order": 5, "name": "Extensión de tríceps sobre la cabeza",
           "sets": 3, "minReps": 10, "maxReps": 12, "restSec": 60,
           "equipment": "barbell", "initialWeightKg": 11, "plateNote": "la misma barra, sin tocar",
-          "alternative": "Si molesta el codo, una sola mancuerna de 9.5 kg con las dos manos",
+          "alternative": "Si molesta el codo, una sola mancuerna de 9 kg con las dos manos",
           "video": "https://www.youtube.com/results?search_query=extension+de+triceps+sobre+la+cabeza"
         },
         {
@@ -289,7 +295,7 @@ already calculated for the real inventory and ordered to minimize plate changes.
         {
           "order": 3, "name": "Zancadas estáticas con mancuernas",
           "sets": 3, "reps": "10 por pierna", "restSec": 75,
-          "equipment": "dumbbell_pair", "initialWeightKg": 7, "plateNote": "2.5 kg en cada extremo",
+          "equipment": "dumbbell_pair", "initialWeightKg": 6.5, "plateNote": "2.5 kg en cada extremo",
           "video": "https://www.youtube.com/results?search_query=zancadas+con+mancuernas+tecnica"
         },
         {
@@ -345,7 +351,7 @@ already calculated for the real inventory and ordered to minimize plate changes.
         {
           "order": 4, "name": "Pájaros / aperturas invertidas inclinado",
           "sets": 3, "minReps": 12, "maxReps": 15, "restSec": 60,
-          "equipment": "dumbbell_pair", "initialWeightKg": 4.5, "plateNote": "1.25 kg en cada extremo",
+          "equipment": "dumbbell_pair", "initialWeightKg": 4, "plateNote": "1.25 kg en cada extremo",
           "video": "https://www.youtube.com/results?search_query=pajaros+con+mancuernas+deltoides+posterior"
         },
         {
@@ -357,7 +363,7 @@ already calculated for the real inventory and ordered to minimize plate changes.
         {
           "order": 6, "name": "Curl martillo con mancuernas",
           "sets": 3, "minReps": 12, "maxReps": 12, "restSec": 60,
-          "equipment": "dumbbell_pair", "initialWeightKg": 7, "plateNote": "2.5 kg en cada extremo",
+          "equipment": "dumbbell_pair", "initialWeightKg": 6.5, "plateNote": "2.5 kg en cada extremo",
           "video": "https://www.youtube.com/results?search_query=curl+martillo+con+mancuernas"
         },
         {

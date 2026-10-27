@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { seedFromProgram } from '../data/seed'
 import type { Routine, RoutineExercise } from '../types/routine'
+import { SEED_STORE_VERSION, migrateRoutines } from '../lib/seedMigration'
 
 interface RoutineState {
   routines: Routine[]
@@ -94,6 +95,13 @@ export const useRoutineStore = create<RoutineState>()(
 
       getRoutineById: (id) => get().routines.find((r) => r.id === id),
     }),
-    { name: 'routine-app:routines' },
+    {
+      name: 'routine-app:routines',
+      version: SEED_STORE_VERSION,
+      migrate: (persisted) => {
+        const state = persisted as Partial<RoutineState>
+        return { ...state, routines: migrateRoutines(state.routines ?? []) } as RoutineState
+      },
+    },
   ),
 )

@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Layout } from './components/Layout'
-import { useThemeStore } from './store/useThemeStore'
+import { useThemeStore, PRO_THEME } from './store/useThemeStore'
+import { useModeStore } from './store/useModeStore'
 import { Home } from './screens/Home'
 import { Warmup } from './screens/Warmup'
 import { Session } from './screens/Session'
@@ -19,13 +20,29 @@ import { SessionOverview } from './screens/SessionOverview'
 import { PlateSetup } from './screens/PlateSetup'
 
 function App() {
-  const theme = useThemeStore((s) => s.theme)
+  const baseTheme = useThemeStore((s) => s.theme)
+  const mode = useModeStore((s) => s.mode)
+  // PRO always uses its own fixed palette; Base uses the user's choice, which stays
+  // stored while in PRO (docs/specs/05-pro-mode.md, "Theme per mode").
+  const theme = mode === 'pro' ? PRO_THEME : baseTheme
+  const isFirstThemeApply = useRef(true)
 
   // Applied to <html> so every `var(--color-*)` utility (see src/index.css's
   // `[data-theme="..."]` blocks) picks up the chosen palette, including outside the
   // router-rendered tree (e.g. the browser's own scrollbar via color-scheme).
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
+    const root = document.documentElement
+    root.dataset.theme = theme
+    // Keep the installed PWA's status bar in step with the page background.
+    const bg = getComputedStyle(root).getPropertyValue('--color-bg').trim()
+    if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg)
+    if (isFirstThemeApply.current) {
+      isFirstThemeApply.current = false
+      return
+    }
+    root.classList.add('theme-switching')
+    const t = setTimeout(() => root.classList.remove('theme-switching'), 250)
+    return () => clearTimeout(t)
   }, [theme])
 
   return (

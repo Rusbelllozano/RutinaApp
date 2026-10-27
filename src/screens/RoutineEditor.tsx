@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useRoutineStore } from '../store/useRoutineStore'
 import { useExerciseStore } from '../store/useExerciseStore'
 import { equipmentLabels } from '../lib/equipmentLabels'
+import { resolveInitialLoad } from '../lib/initialLoad'
+import { useSettingsStore } from '../store/useSettingsStore'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { Button } from '../components/ui/Button'
 import { Chip } from '../components/ui/Chip'
@@ -28,6 +30,15 @@ function RoutineExerciseRow({ routineId, re, exercise, isFirst, isLast }: RowPro
   const updateRoutineExercise = useRoutineStore((s) => s.updateRoutineExercise)
   const moveExerciseInRoutine = useRoutineStore((s) => s.moveExerciseInRoutine)
   const removeExerciseFromRoutine = useRoutineStore((s) => s.removeExerciseFromRoutine)
+  const routine = useRoutineStore((s) => s.getRoutineById(routineId))
+  const getExerciseById = useExerciseStore((s) => s.getExerciseById)
+  const equipment = useSettingsStore((s) => s.equipment)
+  // PRO slots prescribe plates, not kg: show the computed weight as the placeholder so
+  // an empty field doesn't read as "no starting weight". Typing a value overrides it.
+  const platesWeight =
+    routine && re.initialWeightKg === undefined && (re.initialPlates || re.keepPlates)
+      ? resolveInitialLoad(routine, re, (id) => getExerciseById(id)?.equipmentType, equipment).weightKg
+      : undefined
 
   const [repsText, setRepsText] = useState(re.reps ?? '')
   const [weightText, setWeightText] = useState(re.initialWeightKg?.toString() ?? '')
@@ -51,7 +62,7 @@ function RoutineExerciseRow({ routineId, re, exercise, isFirst, isLast }: RowPro
     <div className="flex flex-col gap-4 rounded-2xl bg-bg-elevated p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-medium text-text">{exercise?.name ?? 'Ejercicio'}</div>
+          <div className="truncate text-[15px] font-medium text-text">{re.nameOverride ?? exercise?.name ?? 'Ejercicio'}</div>
           <div className="mt-0.5 text-xs text-text-secondary">
             {equipmentLabels[exercise?.equipmentType ?? 'bodyweight']}
           </div>
@@ -164,7 +175,7 @@ function RoutineExerciseRow({ routineId, re, exercise, isFirst, isLast }: RowPro
             min="0"
             value={weightText}
             onChange={(e) => handleWeightChange(e.target.value)}
-            placeholder="opcional"
+            placeholder={platesWeight !== undefined ? `${platesWeight} (según discos)` : 'opcional'}
             className={inputClass}
           />
         </Field>
