@@ -11,6 +11,10 @@ This folder specs out four features the user asked for on top of the original
    future planning.
 4. [`04-routine-picker.md`](./04-routine-picker.md) — pick any routine to start, not just
    the auto-suggested one.
+5. [`05-pro-mode.md`](./05-pro-mode.md) — a second, switchable program (5-day weekday
+   split) with its own theme, sharing the catalog and history with Base. Added after the
+   first four; it **amends two rules below** (progression lookup and seeding) — read its
+   "Changes to earlier specs" section.
 
 Each doc is self-contained (goal, flows, data, rules, acceptance criteria) but they share
 one data model change described below, so read this file first.
@@ -55,6 +59,8 @@ to be A/B/C), but nothing in the model limits it to 3 or to that naming anymore.
   same exercise (e.g. higher reps for the same move in a "light day" a user builds
   later). History (`SessionLog`) and double progression key off `exerciseId`, so
   progress on an exercise is tracked across routines, not reset per routine.
+  *Amended by `05-pro-mode.md`:* the progression suggestion prefers the last log of the
+  exercise **in the same routine**, falling back to any routine.
 - **Completing a session is the only thing that advances `RotationState`.** Planning a
   future date in the calendar, or manually picking a routine to run today, never mutates
   the rotation queue by itself — only an actually-logged `SessionLog` does, and it

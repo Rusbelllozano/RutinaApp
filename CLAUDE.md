@@ -13,7 +13,10 @@ of the HANDOFF's v1 scope — a standalone weight calculator, an exercise librar
 exercises), a routine calendar (history + planning), and a routine picker (start any
 routine, not just the auto-suggested one). Read `docs/specs/00-overview.md` first — it
 explains the data model change (`WorkoutDay` → `Routine`, exercises become a shared
-catalog) that all four specs depend on.
+catalog) that all four specs depend on. `docs/specs/05-pro-mode.md` adds a fifth: a
+switchable PRO mode (5-day Mon–Fri split, own fixed theme) that shares the exercise
+catalog and history with the default Base mode, and amends the progression-lookup and
+seeding rules of `00-overview.md`.
 
 **Design system:** `docs/DESIGN.md` has the color/type/component tokens for every
 screen — dark theme, one muted blue accent, flat blocks with no shadows, IBM Plex Sans +
@@ -158,6 +161,9 @@ catalog/routine model from `docs/specs/00-overview.md` instead of a flat day lis
    settings.
 10. Load ceiling (HANDOFF section 7): alternate progression variants once an exercise has
     spent 3 weeks at the max buildable weight.
+11. PRO mode (`docs/specs/05-pro-mode.md`): mode store + switch, `claro`/`pro` themes,
+    PRO seed data + migration for existing users, date-driven Home/calendar, per-routine
+    progression lookup, cycle goal, and `schemaVersion` in export/import.
 
 Before calling a feature done, check it against the acceptance criteria in HANDOFF
 section 8 and in the relevant `docs/specs/*.md` file — those are this project's
