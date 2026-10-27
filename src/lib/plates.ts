@@ -135,6 +135,30 @@ export function getPlateBreakdown(
   return plateBreakdown(targetKg, baseWeightFor(equipmentType, equipment), equipment.plates, sides)
 }
 
+/**
+ * Breakdown for a specific plate configuration (per side / per end, e.g. [5, 5, 2.5]) —
+ * for prescriptions that pick *which* plates on purpose, e.g. to leave the 5 kg plates
+ * on the barbell (docs/specs/05-pro-mode.md). Null when the inventory can't supply that
+ * configuration symmetrically on every loading point, or for bodyweight.
+ */
+export function breakdownFromPlates(
+  equipmentType: EquipmentType,
+  platesPerSide: number[],
+  equipment: Equipment,
+): PlateBreakdown | null {
+  const sides = sidesFor(equipmentType)
+  if (sides === null) return null
+  const counts = new Map<number, number>()
+  for (const kg of platesPerSide) counts.set(kg, (counts.get(kg) ?? 0) + 1)
+  for (const [kg, count] of counts) {
+    const available = equipment.plates.find((p) => p.kg === kg)?.quantity ?? 0
+    if (count * sides > available) return null
+  }
+  const perSide = [...counts].sort((a, b) => b[0] - a[0]).map(([kg, count]) => ({ kg, count }))
+  const totalKg = round2(baseWeightFor(equipmentType, equipment) + 2 * platesPerSide.reduce((sum, kg) => sum + kg, 0))
+  return { totalKg, perSide }
+}
+
 /** True when `targetKg` can be loaded exactly with the current inventory. */
 export function isBuildable(equipmentType: EquipmentType, targetKg: number, equipment: Equipment): boolean {
   return getPlateBreakdown(equipmentType, targetKg, equipment) !== null

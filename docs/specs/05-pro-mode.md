@@ -40,10 +40,12 @@ local date. Base keeps `routine-app:rotation` exactly as it is today.
   historial se conserva." Switching to Base:
   "Vas a cambiar a modo Base: rotación A-B-C, sin días fijos. Tu historial se conserva."
   Buttons: **Cambiar** / **Cancelar**.
-- **Locked during a session.** While `useSessionTimerStore.routineId !== null` (a session
-  has been started and not yet logged or discarded), the switch is disabled and shows
+- **Locked during a session.** While a session has been started and not yet logged or
+  discarded (`useSessionTimerStore.startedAt !== null`), the switch is disabled and shows
   "Termina o descarta la sesión actual." as visible helper text — not only a tooltip,
-  since there's no hover on a phone.
+  since there's no hover on a phone. Home also shows a "Tienes una sesión en curso" card
+  with **Continuar** / **Descartar** (with confirmation), so a session abandoned by
+  closing the app can't leave the switch locked for good.
 - **The current mode is always stated in text on Home** (e.g. a "Modo PRO" / "Modo Base"
   label next to the switch). Color alone is not enough.
 
@@ -54,7 +56,9 @@ unmistakable, not a subtle tint.
 
 - **Base:** the user keeps choosing their theme in Settings → Apariencia. The four
   existing dark themes stay, and a new **light theme ("Claro")** is added and becomes the
-  default for new installs. Existing users keep whatever theme they already stored.
+  default for new installs. Existing users keep whatever theme they already stored; one
+  who never picked a theme (nothing stored, but other app data present) keeps the dark
+  "Océano" default they've been seeing rather than flipping to light on update.
 - **PRO:** one fixed theme — dark, high contrast, warm saturated amber accent. While in
   PRO the Settings theme picker is hidden (or disabled with a note "El modo PRO usa su
   propio tema"); the user's Base choice is kept and restored when switching back.
@@ -80,14 +84,17 @@ token below is ≥ 4.5:1 against all three surface levels of its own theme):
 | `--color-text-tertiary` | `#5f6877` | `#9393a0` |
 | `--color-accent` | `#2f62a8` | `#ff9f1c` |
 | `--color-accent-ink` | `#ffffff` | `#1a0f00` |
-| success (set done) | `#25703f` | `#5cc98a` |
 | `--color-danger` | `#b23b3b` | `#ff6b6b` |
 
-Lowest measured pairs: `claro` tertiary text on `bg-elevated-2` 4.78:1, success on
-`bg-elevated-2` 5.15:1; `pro` tertiary text on `bg-elevated-2` 5.21:1. Border tokens and
-the routine A/B/C colors aren't text, so they're not bound by 4.5:1, but the routine
-colors need a darker variant under `claro` if they're ever used as text. Exact hex
-values are the implementer's call; **the 4.5:1 floor is not** — re-verify any change.
+Lowest measured pairs: `claro` tertiary text on `bg-elevated-2` 4.78:1; `pro` tertiary
+text on `bg-elevated-2` 5.21:1. There is no separate "success" token: a done set uses the
+accent and neutral surfaces, which are covered above. Routine colors are used as
+calendar text and as cell fills under `--color-bg` text, so they're held to 4.5:1 against
+`--color-bg` too — `claro` gets darker variants of A/B/C. Each PRO weekday routine has
+its own color (`--color-routine-pro-1…5`: coral, teal, blue, lilac, yellow), distinct from
+the amber accent and from Base's A/B/C so a calendar legend that mixes both modes stays
+readable. Exact hex values are the implementer's call; **the 4.5:1 floor is not** —
+`src/lib/themeContrast.test.ts` reads `src/index.css` and enforces it.
 
 ### Non-negotiable requirements
 

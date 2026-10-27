@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { useRotationStore } from '../store/useRotationStore'
 import { useThemeStore, type ThemeId } from '../store/useThemeStore'
+import { useModeStore } from '../store/useModeStore'
+import { useGoalStore, DEFAULT_GOAL } from '../store/useGoalStore'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { SectionLabel } from '../components/ui/SectionLabel'
@@ -12,6 +14,7 @@ import { SectionLabel } from '../components/ui/SectionLabel'
  * Keep in sync with the `[data-theme="..."]` blocks in src/index.css.
  */
 const THEMES: { id: ThemeId; label: string; swatch: string }[] = [
+  { id: 'claro', label: 'Claro', swatch: '#2f62a8' },
   { id: 'oceano', label: 'Océano', swatch: '#6c93d8' },
   { id: 'bosque', label: 'Bosque', swatch: '#6cd8a2' },
   { id: 'atardecer', label: 'Atardecer', swatch: '#d89e6c' },
@@ -20,8 +23,9 @@ const THEMES: { id: ThemeId; label: string; swatch: string }[] = [
 
 /**
  * Every persisted Zustand store's localStorage key — confirmed from each store file's
- * `persist(..., { name: '...' })` call. Export/import bundles all six, per
- * docs/HANDOFF.md §5.7 and §8 ("history can be exported and re-imported").
+ * `persist(..., { name: '...' })` call — except the transient session timer. Export/
+ * import bundles all of them, per docs/HANDOFF.md §5.7 and §8 ("history can be exported
+ * and re-imported") and docs/specs/05-pro-mode.md (both modes in one file).
  */
 const STORE_KEYS = [
   'routine-app:settings',
@@ -30,7 +34,17 @@ const STORE_KEYS = [
   'routine-app:rotation',
   'routine-app:history',
   'routine-app:calendar',
+  'routine-app:mode',
+  'routine-app:goal',
+  'routine-app:theme',
 ] as const
+
+/**
+ * Backup file format version. 1 = the original versionless bundle (six stores); 2 adds
+ * mode, goal and theme. Older files import fine — the catalog/routine stores' own
+ * `persist` migration fills in what they lack on reload — newer ones are refused.
+ */
+const BACKUP_SCHEMA_VERSION = 2
 
 /** Equipment/sound/rotation/export-import per docs/HANDOFF.md §5.7. */
 export function Settings() {
@@ -43,6 +57,7 @@ export function Settings() {
   const resetRotation = useRotationStore((s) => s.resetRotation)
   const theme = useThemeStore((s) => s.theme)
   const setTheme = useThemeStore((s) => s.setTheme)
+  const mode = useModeStore((s) => s.mode)
 
   const [importError, setImportError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -58,7 +73,7 @@ export function Settings() {
     // A store that hasn't been written to yet (e.g. the user never touched the Calendar
     // or added a custom routine) has no localStorage entry at all — omit it rather than
     // bundling `null`, so importing this file elsewhere never wipes that store's real data.
-    const bundle: Record<string, unknown> = {}
+    const bundle: Record<string, unknown> = { schemaVersion: BACKUP_SCHEMA_VERSION }
     for (const key of STORE_KEYS) {
       const raw = localStorage.getItem(key)
       if (raw !== null) bundle[key] = JSON.parse(raw)
@@ -84,6 +99,11 @@ export function Settings() {
     try {
       const text = await file.text()
       const bundle = JSON.parse(text) as Record<string, unknown>
+      const version = typeof bundle.schemaVersion === 'number' ? bundle.schemaVersion : 1
+      if (version > BACKUP_SCHEMA_VERSION) {
+        setImportError('Este respaldo es de una versión más nueva de la app.')
+        return
+      }
       const recognized = STORE_KEYS.filter((key) => key in bundle)
       if (recognized.length === 0) {
         setImportError('El archivo no parece un respaldo válido de RutinaApp.')
@@ -106,22 +126,28 @@ export function Settings() {
 
       <Card className="flex flex-col gap-3">
         <SectionLabel>Apariencia</SectionLabel>
-        <div className="grid grid-cols-2 gap-2">
-          {THEMES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              aria-pressed={theme === t.id}
-              onClick={() => setTheme(t.id)}
-              className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left ${
-                theme === t.id ? 'border-accent bg-bg-elevated-2' : 'border-border'
-              }`}
-            >
-              <span className="h-4 w-4 flex-shrink-0 rounded-full" style={{ backgroundColor: t.swatch }} />
-              <span className="text-sm text-text">{t.label}</span>
-            </button>
-          ))}
-        </div>
+        {mode === 'pro' ? (
+          <div className="text-sm text-text-secondary">
+            El modo PRO usa su propio tema. Tu elección se mantiene para cuando vuelvas a modo Base.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {THEMES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                aria-pressed={theme === t.id}
+                onClick={() => setTheme(t.id)}
+                className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left ${
+                  theme === t.id ? 'border-accent bg-bg-elevated-2' : 'border-border'
+                }`}
+              >
+                <span className="h-4 w-4 flex-shrink-0 rounded-full" style={{ backgroundColor: t.swatch }} />
+                <span className="text-sm text-text">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card className="flex flex-col gap-4">
@@ -175,7 +201,7 @@ export function Settings() {
           }`}
         >
           <span
-            className={`absolute top-0.5 h-6 w-6 rounded-full bg-bg transition-transform ${
+            className={`absolute left-0 top-0.5 h-6 w-6 rounded-full bg-bg transition-transform ${
               soundEnabled ? 'translate-x-[22px]' : 'translate-x-0.5'
             }`}
           />
@@ -196,6 +222,8 @@ export function Settings() {
           Reiniciar rotación A-B-C
         </Button>
       </Card>
+
+      <GoalSettings />
 
       <Card className="flex flex-col gap-3">
         <SectionLabel>Respaldo</SectionLabel>
@@ -224,6 +252,66 @@ export function Settings() {
         {importError && <div className="text-sm text-danger">{importError}</div>}
       </Card>
     </div>
+  )
+}
+
+const dateInputClass =
+  'h-11 w-full rounded-xl border border-border bg-bg-elevated-2 px-3 text-[14px] text-text focus:outline-none'
+
+/** Cycle goal shown on PRO's Home (docs/specs/05-pro-mode.md, "Cycle goal") — editable, never hardcoded. */
+function GoalSettings() {
+  const goal = useGoalStore((s) => s.goal)
+  const setGoal = useGoalStore((s) => s.setGoal)
+
+  if (!goal) {
+    return (
+      <Card className="flex flex-col gap-3">
+        <SectionLabel>Meta del ciclo (modo PRO)</SectionLabel>
+        <div className="text-sm text-text-secondary">Sin meta. Puedes definir una con fechas y número de sesiones.</div>
+        <Button variant="secondary" size="md" onClick={() => setGoal(DEFAULT_GOAL)}>
+          Definir meta
+        </Button>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="flex flex-col gap-4">
+      <SectionLabel>Meta del ciclo (modo PRO)</SectionLabel>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1.5 text-xs text-text-secondary">
+          Desde
+          <input
+            type="date"
+            value={goal.startDate}
+            max={goal.endDate}
+            onChange={(e) => e.target.value && setGoal({ ...goal, startDate: e.target.value })}
+            className={dateInputClass}
+          />
+        </label>
+        <label className="flex flex-col gap-1.5 text-xs text-text-secondary">
+          Hasta
+          <input
+            type="date"
+            value={goal.endDate}
+            min={goal.startDate}
+            onChange={(e) => e.target.value && setGoal({ ...goal, endDate: e.target.value })}
+            className={dateInputClass}
+          />
+        </label>
+      </div>
+      <Stepper
+        label="Sesiones objetivo"
+        value={goal.targetSessions}
+        unit=""
+        step={1}
+        min={1}
+        onChange={(targetSessions) => setGoal({ ...goal, targetSessions: Math.max(1, targetSessions) })}
+      />
+      <Button variant="ghost" size="md" onClick={() => setGoal(null)}>
+        Quitar meta
+      </Button>
+    </Card>
   )
 }
 

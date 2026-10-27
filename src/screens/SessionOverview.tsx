@@ -55,7 +55,7 @@ export function SessionOverview() {
                   {i + 1}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[15px] font-medium text-text">{exercise?.name ?? 'Ejercicio'}</div>
+                  <div className="truncate text-[15px] font-medium text-text">{re.nameOverride ?? exercise?.name ?? 'Ejercicio'}</div>
                   <div className="mt-0.5 text-xs text-text-secondary">
                     {sets} series × {repsRangeLabel(re)}
                   </div>

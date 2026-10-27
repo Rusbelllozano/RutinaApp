@@ -1,12 +1,16 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { SessionLog, SessionLogExercise } from '../types/routine'
+import { findLastExerciseLog, findProgressionLog, type LastExerciseLog } from '../lib/progression'
 
 interface HistoryState {
   /** Chronological, oldest first — every read here assumes logs are appended in order. */
   logs: SessionLog[]
   addLog: (input: Omit<SessionLog, 'id'>) => SessionLog
-  getLastLogForExercise: (exerciseId: string) => SessionLogExercise | undefined
+  /** Most recent entry for the exercise in any routine — what "La vez pasada" shows. */
+  getLastLogForExercise: (exerciseId: string) => LastExerciseLog | undefined
+  /** Same-routine entry first, any routine as fallback — what double progression uses. */
+  getProgressionLog: (exerciseId: string, routineId: string) => LastExerciseLog | undefined
   getLogsForExercise: (exerciseId: string) => { date: string; entry: SessionLogExercise }[]
   getLogForDate: (date: string) => SessionLog | undefined
 }
@@ -22,14 +26,9 @@ export const useHistoryStore = create<HistoryState>()(
         return log
       },
 
-      getLastLogForExercise: (exerciseId) => {
-        const { logs } = get()
-        for (let i = logs.length - 1; i >= 0; i--) {
-          const found = logs[i].exercises.find((e) => e.exerciseId === exerciseId)
-          if (found) return found
-        }
-        return undefined
-      },
+      getLastLogForExercise: (exerciseId) => findLastExerciseLog(get().logs, exerciseId),
+
+      getProgressionLog: (exerciseId, routineId) => findProgressionLog(get().logs, exerciseId, routineId),
 
       getLogsForExercise: (exerciseId) =>
         get()

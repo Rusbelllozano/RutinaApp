@@ -12,7 +12,12 @@ not a retrofit of something already implemented.
 
 ## Color
 
-Dark theme only for now (no light variant was designed).
+The tokens below are the original dark theme ("Océano"). Since PRO mode
+(`docs/specs/05-pro-mode.md`) there are also a light Base theme, **`claro`** (the default
+for new installs), and PRO's fixed **`pro`** theme (near-black, saturated amber accent),
+plus the alternate dark ramps picked in Settings. Their hex values live in
+`src/index.css`; `src/lib/themeContrast.test.ts` checks that `claro` and `pro` keep all
+text, accent and routine colors at ≥ 4.5:1.
 
 | Token | Hex | Use |
 |---|---|---|
@@ -110,8 +115,8 @@ staying sober (not a display/personality font).
 
 ## What's intentionally not decided here
 
-- No light theme was designed (dark was the explicit choice). If one gets requested
-  later, redo the neutral ramp — don't just invert these hex values.
+- The light `claro` theme was added later with its own neutral ramp (not an inversion
+  of these hex values) and darker routine colors, so they still work as text.
 - Interaction/motion (tap states, the rest-timer's animated ring, transitions between
   session steps) wasn't specced — the mockups are static.
 - These are visual tokens, not implementation. Translating them into Tailwind v4's

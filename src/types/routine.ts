@@ -30,7 +30,22 @@ export interface RoutineExercise {
   restSec: number
   initialWeightKg?: number
   plateNote?: string
+  /**
+   * Plates per side (barbell / single dumbbell) or per end (each dumbbell of a pair) for
+   * the first session. When `initialWeightKg` is unset, the starting weight is computed
+   * from these and the bar weights in Settings — see docs/specs/05-pro-mode.md.
+   */
+  initialPlates?: number[]
+  /** Same bar/dumbbell as the previous exercise using this implement, plates untouched. */
+  keepPlates?: true
+  /** Display name for this routine only, overriding the catalog entry's name. */
+  nameOverride?: string
 }
+
+export type ProgramMode = 'base' | 'pro'
+
+/** ISO weekday, Monday = 1 … Friday = 5 — the only days PRO routines are pinned to. */
+export type ProWeekday = 1 | 2 | 3 | 4 | 5
 
 export interface Routine {
   id: string
@@ -38,6 +53,10 @@ export interface Routine {
   muscleGroups: string[]
   exercises: RoutineExercise[]
   source: 'base' | 'custom'
+  /** Which program a seeded routine belongs to; unset for custom routines (shown in both modes). */
+  mode?: ProgramMode
+  /** PRO routines only: the weekday this routine is suggested on. */
+  weekday?: ProWeekday
 }
 
 export interface RotationState {

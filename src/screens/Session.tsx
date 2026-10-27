@@ -8,6 +8,7 @@ import { useSettingsStore } from '../store/useSettingsStore'
 import { useSessionTimerStore, computeElapsedMs } from '../store/useSessionTimerStore'
 import { getBuildableWeights, getPlateBreakdown, clampToBuildable, describePlateBreakdown } from '../lib/plates'
 import { suggestProgression } from '../lib/progression'
+import { resolveInitialLoad, withResolvedInitialWeight } from '../lib/initialLoad'
 import { getRoutineColor } from '../lib/routineColor'
 import { todayISODate, formatDurationMMSS } from '../lib/date'
 import { exercisesForSession, effectiveSetsFor, repsRangeLabel } from '../lib/sessionRules'
@@ -140,6 +141,7 @@ export function Session() {
   const routine = useRoutineStore((s) => (routineId ? s.getRoutineById(routineId) : undefined))
   const getExerciseById = useExerciseStore((s) => s.getExerciseById)
   const getLastLogForExercise = useHistoryStore((s) => s.getLastLogForExercise)
+  const getProgressionLog = useHistoryStore((s) => s.getProgressionLog)
   const addLog = useHistoryStore((s) => s.addLog)
   const advanceAfter = useRotationStore((s) => s.advanceAfter)
   const equipment = useSettingsStore((s) => s.equipment)
@@ -159,10 +161,24 @@ export function Session() {
   const exercise = routineExercise ? getExerciseById(routineExercise.exerciseId) : undefined
   const effectiveSets = routineExercise ? effectiveSetsFor(routineExercise, minimal) : 0
 
-  const lastLog = routineExercise ? getLastLogForExercise(routineExercise.exerciseId) : undefined
+  // Progression follows this routine's own history first (docs/specs/05-pro-mode.md);
+  // "La vez pasada" shows the latest from any routine, labeled when it's another one.
+  const lastLog = routine && routineExercise ? getProgressionLog(routineExercise.exerciseId, routine.id)?.entry : undefined
+  const latestAnyRoutine = routineExercise ? getLastLogForExercise(routineExercise.exerciseId) : undefined
+  const latestFromOtherRoutine =
+    latestAnyRoutine && routine && latestAnyRoutine.routineId !== routine.id
+      ? useRoutineStore.getState().getRoutineById(latestAnyRoutine.routineId)?.name
+      : undefined
+  const initialLoad = useMemo(
+    () =>
+      routine && routineExercise
+        ? resolveInitialLoad(routine, routineExercise, (id) => getExerciseById(id)?.equipmentType, equipment)
+        : {},
+    [routine, routineExercise, getExerciseById, equipment],
+  )
   const suggestion = useMemo(
-    () => (routineExercise ? suggestProgression(routineExercise, lastLog) : null),
-    [routineExercise, lastLog],
+    () => (routineExercise ? suggestProgression(withResolvedInitialWeight(routineExercise, initialLoad), lastLog) : null),
+    [routineExercise, initialLoad, lastLog],
   )
 
   const equipmentType = exercise?.equipmentType ?? 'bodyweight'
@@ -336,7 +352,13 @@ export function Session() {
     }
   }
 
-  const breakdown = showsWeight && draftWeight !== undefined ? getPlateBreakdown(equipmentType, draftWeight, equipment) : null
+  // First time on this slot, show the prescribed plates (chosen to avoid inventory
+  // conflicts) rather than whatever minimal combination reaches the same kg.
+  const prescribed = !lastLog && initialLoad.breakdown?.totalKg === draftWeight ? initialLoad.breakdown : undefined
+  const breakdown =
+    showsWeight && draftWeight !== undefined
+      ? (prescribed ?? getPlateBreakdown(equipmentType, draftWeight, equipment))
+      : null
   const canConfirm = doneCount < effectiveSets && restRemaining === null
 
   return (
@@ -354,7 +376,7 @@ export function Session() {
 
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 pb-4 pt-3">
         <div className="flex flex-col gap-1.5">
-          <div className="text-xl font-semibold">{exercise.name}</div>
+          <div className="text-xl font-semibold">{routineExercise.nameOverride ?? exercise.name}</div>
           <div className="flex items-center gap-2 text-sm text-text-secondary">
             <span>
               {effectiveSets} series × {repsRangeLabel(routineExercise)}
@@ -373,13 +395,14 @@ export function Session() {
           )}
         </div>
 
-        {lastLog && (
+        {latestAnyRoutine && (
           <div className="text-sm text-text-secondary">
-            La vez pasada: {lastLog.sets.length}×
-            {lastLog.sets[lastLog.sets.length - 1]?.reps ?? lastLog.sets[lastLog.sets.length - 1]?.durationSec}
-            {lastLog.sets[lastLog.sets.length - 1]?.weightKg !== undefined
-              ? ` a ${lastLog.sets[lastLog.sets.length - 1].weightKg} kg`
+            La vez pasada: {latestAnyRoutine.entry.sets.length}×
+            {latestAnyRoutine.entry.sets.at(-1)?.reps ?? latestAnyRoutine.entry.sets.at(-1)?.durationSec}
+            {latestAnyRoutine.entry.sets.at(-1)?.weightKg !== undefined
+              ? ` a ${latestAnyRoutine.entry.sets.at(-1)!.weightKg} kg`
               : ''}
+            {latestFromOtherRoutine ? ` (en ${latestFromOtherRoutine})` : ''}
           </div>
         )}
 
