@@ -15,6 +15,8 @@ interface RoutineState {
   /** Swaps `order` with the previous (-1) or next (1) exercise in the routine. No-op past either edge. */
   moveExerciseInRoutine: (routineId: string, exerciseId: string, direction: 1 | -1) => void
   removeExerciseFromAllRoutines: (exerciseId: string) => void
+  /** Replaces a routine's whole exercise list — used to apply/undo AI analysis changes. */
+  setRoutineExercises: (routineId: string, exercises: RoutineExercise[]) => void
   getRoutineById: (id: string) => Routine | undefined
 }
 
@@ -92,6 +94,9 @@ export const useRoutineStore = create<RoutineState>()(
             exercises: r.exercises.filter((re) => re.exerciseId !== exerciseId),
           })),
         })),
+
+      setRoutineExercises: (routineId, exercises) =>
+        set((s) => ({ routines: s.routines.map((r) => (r.id === routineId ? { ...r, exercises } : r)) })),
 
       getRoutineById: (id) => get().routines.find((r) => r.id === id),
     }),

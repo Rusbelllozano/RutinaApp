@@ -13,6 +13,7 @@ import { getRoutineColor } from '../lib/routineColor'
 import { todayISODate, formatDurationMMSS } from '../lib/date'
 import { exercisesForSession, effectiveSetsFor, repsRangeLabel } from '../lib/sessionRules'
 import { equipmentLabels } from '../lib/equipmentLabels'
+import { EFFORT_OPTIONS } from '../lib/effort'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -21,7 +22,7 @@ import { SectionLabel } from '../components/ui/SectionLabel'
 import { PlateDiagram } from '../components/ui/PlateDiagram'
 import { PlayIcon } from '../components/ui/icons'
 import { SessionTimerBar } from '../components/SessionTimerBar'
-import type { LoggedSet, RoutineExercise, SessionLog, SessionLogExercise } from '../types/routine'
+import type { ExerciseEffort, LoggedSet, RoutineExercise, SessionLog, SessionLogExercise } from '../types/routine'
 
 /** Router `state` handed from Session to Cooldown — matches the shape Cooldown.tsx expects. */
 interface CooldownFlowState {
@@ -57,6 +58,14 @@ function appendSetToExercise(
   const updated = [...list]
   updated[idx] = { ...updated[idx], sets: [...updated[idx].sets, setLog] }
   return updated
+}
+
+function setEffortForExercise(
+  list: SessionLogExercise[],
+  exerciseId: string,
+  effort: ExerciseEffort,
+): SessionLogExercise[] {
+  return list.map((e) => (e.exerciseId === exerciseId ? { ...e, effort: e.effort === effort ? undefined : effort } : e))
 }
 
 /** Reverts the most recently confirmed set for one exercise — the undo counterpart to `appendSetToExercise`. */
@@ -156,6 +165,11 @@ export function Session() {
   const [restRemaining, setRestRemaining] = useState<number | null>(null)
   const [restPaused, setRestPaused] = useState(false)
   const pendingAdvanceRef = useRef<{ nextExercise: boolean } | null>(null)
+  // Real rest timing for the AI export (docs/specs/06-ai-analysis.md): when the current
+  // rest started, and how long the last one actually lasted (attached to the next set).
+  const restStartedAtRef = useRef<number | null>(null)
+  const lastRestSecRef = useRef<number | undefined>(undefined)
+  const [restEndsExercise, setRestEndsExercise] = useState(false)
 
   const routineExercise: RoutineExercise | undefined = exercisesToRun[currentExerciseIndex]
   const exercise = routineExercise ? getExerciseById(routineExercise.exerciseId) : undefined
@@ -210,6 +224,14 @@ export function Session() {
     setProgressionDismissed(false)
   }
 
+  // An AI-set weight above last time's starts the rep range over, like an accepted jump.
+  const lastLoggedWeight = lastLog?.sets.at(-1)?.weightKg
+  const restartsRepRange =
+    progressionAccepted ||
+    (routineExercise?.nextWeightKg !== undefined &&
+      lastLoggedWeight !== undefined &&
+      routineExercise.nextWeightKg > lastLoggedWeight)
+
   function computeDraftWeight() {
     if (!showsWeight) return undefined
     const raw = progressionAccepted ? suggestion?.increasedWeightKg : suggestion?.suggestedWeightKg
@@ -224,9 +246,9 @@ export function Session() {
   }
 
   function computeDraftReps() {
-    return showsReps && routineExercise ? suggestedReps(routineExercise, lastLog, doneCount, progressionAccepted) : undefined
+    return showsReps && routineExercise ? suggestedReps(routineExercise, lastLog, doneCount, restartsRepRange) : undefined
   }
-  const repsResetKey = `${currentExerciseIndex}:${doneCount}:${progressionAccepted}`
+  const repsResetKey = `${currentExerciseIndex}:${doneCount}:${restartsRepRange}`
   const [draftReps, setDraftReps] = useState<number | undefined>(computeDraftReps)
   const [prevRepsResetKey, setPrevRepsResetKey] = useState(repsResetKey)
   if (prevRepsResetKey !== repsResetKey) {
@@ -248,9 +270,14 @@ export function Session() {
     if (restRemaining <= 0) {
       if (soundEnabled) playRestEndSound()
       if ('vibrate' in navigator) navigator.vibrate(200)
+      if (restStartedAtRef.current !== null) {
+        lastRestSecRef.current = Math.round((Date.now() - restStartedAtRef.current) / 1000)
+        restStartedAtRef.current = null
+      }
       const pending = pendingAdvanceRef.current
       pendingAdvanceRef.current = null
       setRestRemaining(null)
+      setRestEndsExercise(false)
       if (pending?.nextExercise) setCurrentExerciseIndex((i) => i + 1)
       return
     }
@@ -290,14 +317,22 @@ export function Session() {
   }
 
   function finalizeSession(finalExercises: SessionLogExercise[]) {
-    const durationMin = Math.max(1, Math.round(computeElapsedMs(useSessionTimerStore.getState()) / 60_000))
+    const timer = useSessionTimerStore.getState()
+    const durationMin = Math.max(1, Math.round(computeElapsedMs(timer) / 60_000))
     const log = addLog({
       date: todayISODate(),
       routineId: routine!.id,
       exercises: finalExercises,
       isMinimalVersion: minimal,
       durationMin,
+      startedAt: timer.startedAt ?? undefined,
     })
+    // An AI-set weight applies to one session only; progression carries on from what was logged.
+    const { updateRoutineExercise } = useRoutineStore.getState()
+    for (const e of finalExercises) {
+      const re = routine!.exercises.find((x) => x.exerciseId === e.exerciseId)
+      if (re?.nextWeightKg !== undefined) updateRoutineExercise(routine!.id, e.exerciseId, { nextWeightKg: undefined })
+    }
     advanceAfter(routine!.id)
     useSessionTimerStore.getState().reset()
     const state: CooldownFlowState = { sessionLog: log }
@@ -310,7 +345,10 @@ export function Session() {
       weightKg: showsWeight ? draftWeight : undefined,
       reps: showsReps ? draftReps : undefined,
       durationSec: showsDuration ? draftDurationSec : undefined,
+      completedAt: Date.now(),
+      restTakenSec: lastRestSecRef.current,
     }
+    lastRestSecRef.current = undefined
     const updated = appendSetToExercise(loggedExercises, exercise!.id, setLog)
     setLoggedExercises(updated)
 
@@ -323,15 +361,25 @@ export function Session() {
     }
 
     pendingAdvanceRef.current = { nextExercise: isLastSetOfExercise }
+    restStartedAtRef.current = Date.now()
+    setRestEndsExercise(isLastSetOfExercise)
     setRestPaused(false)
     setRestRemaining(routineExercise!.restSec)
   }
 
+  function endRestTiming() {
+    if (restStartedAtRef.current === null) return
+    lastRestSecRef.current = Math.round((Date.now() - restStartedAtRef.current) / 1000)
+    restStartedAtRef.current = null
+  }
+
   function skipRest() {
     if (restRemaining === null) return
+    endRestTiming()
     const pending = pendingAdvanceRef.current
     pendingAdvanceRef.current = null
     setRestRemaining(null)
+    setRestEndsExercise(false)
     setRestPaused(false)
     if (pending?.nextExercise) setCurrentExerciseIndex((i) => i + 1)
   }
@@ -347,7 +395,10 @@ export function Session() {
     setLoggedExercises((prev) => removeLastSetFromExercise(prev, exercise!.id))
     if (restRemaining !== null) {
       pendingAdvanceRef.current = null
+      restStartedAtRef.current = null
+      lastRestSecRef.current = undefined
       setRestRemaining(null)
+      setRestEndsExercise(false)
       setRestPaused(false)
     }
   }
@@ -492,6 +543,26 @@ export function Session() {
             <div className={`font-mono text-4xl font-semibold ${restPaused ? 'text-text-tertiary' : ''}`}>
               {formatDurationMMSS(restRemaining)}
             </div>
+            {restEndsExercise && (
+              <div className="flex w-full flex-col items-center gap-2 border-t border-border pt-3">
+                <div className="text-xs text-text-secondary">¿Cómo se sintió este ejercicio?</div>
+                <div className="flex gap-2">
+                  {EFFORT_OPTIONS.map((o) => {
+                    const current = loggedExercises.find((e) => e.exerciseId === exercise.id)?.effort
+                    return (
+                      <button
+                        key={o.id}
+                        type="button"
+                        aria-pressed={current === o.id}
+                        onClick={() => setLoggedExercises((prev) => setEffortForExercise(prev, exercise.id, o.id))}
+                      >
+                        <Chip active={current === o.id}>{o.label}</Chip>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             <div className="flex gap-3">
               <Button variant="secondary" size="md" onClick={() => setRestPaused((p) => !p)}>
                 {restPaused ? 'Reanudar' : 'Pausar'}

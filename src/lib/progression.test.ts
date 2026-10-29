@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findLastExerciseLog, findProgressionLog } from './progression'
+import { findLastExerciseLog, findProgressionLog, suggestProgression } from './progression'
 import type { SessionLog } from '../types/routine'
 
 const BRIDGE = 'base-puente-de-gluteo-con-barra-sobre-la-cadera'
@@ -36,5 +36,23 @@ describe('findProgressionLog', () => {
   it('"last time" without a routine is simply the most recent anywhere', () => {
     expect(findLastExerciseLog(logs, BRIDGE)?.routineId).toBe('pro-5')
     expect(findLastExerciseLog(logs, 'nope')).toBeUndefined()
+  })
+})
+
+describe('suggestProgression with an AI-set next weight', () => {
+  const re = { exerciseId: SQUAT, order: 1, sets: 2, minReps: 8, maxReps: 12, restSec: 90, nextWeightKg: 26 }
+  const topOfRange = { exerciseId: SQUAT, sets: [{ setIndex: 0, weightKg: 21, reps: 12 }, { setIndex: 1, weightKg: 21, reps: 12 }] }
+
+  it('uses the override and skips the +2.5 kg offer', () => {
+    expect(suggestProgression(re, topOfRange)).toEqual({
+      suggestedWeightKg: 26,
+      atTopOfRange: false,
+      increasedWeightKg: undefined,
+    })
+  })
+
+  it('falls back to normal progression without it', () => {
+    const { nextWeightKg: _, ...plain } = re
+    expect(suggestProgression(plain, topOfRange).increasedWeightKg).toBe(23.5)
   })
 })

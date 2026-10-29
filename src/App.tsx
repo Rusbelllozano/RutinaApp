@@ -18,6 +18,7 @@ import { RoutinePicker } from './screens/RoutinePicker'
 import { RoutineEditor } from './screens/RoutineEditor'
 import { SessionOverview } from './screens/SessionOverview'
 import { PlateSetup } from './screens/PlateSetup'
+import { AiAnalysis } from './screens/AiAnalysis'
 
 function App() {
   const baseTheme = useThemeStore((s) => s.theme)
@@ -66,6 +67,7 @@ function App() {
           <Route path="exercises/new" element={<AddExercise />} />
           <Route path="routines" element={<RoutinePicker />} />
           <Route path="routines/:routineId/edit" element={<RoutineEditor />} />
+          <Route path="ai-analysis" element={<AiAnalysis />} />
         </Routes>
       </div>
     </BrowserRouter>

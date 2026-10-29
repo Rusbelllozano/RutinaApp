@@ -7,6 +7,8 @@ interface HistoryState {
   /** Chronological, oldest first — every read here assumes logs are appended in order. */
   logs: SessionLog[]
   addLog: (input: Omit<SessionLog, 'id'>) => SessionLog
+  /** Post-session edits from Summary: the note and effort ratings. */
+  updateLog: (id: string, patch: Partial<Omit<SessionLog, 'id'>>) => void
   /** Most recent entry for the exercise in any routine — what "La vez pasada" shows. */
   getLastLogForExercise: (exerciseId: string) => LastExerciseLog | undefined
   /** Same-routine entry first, any routine as fallback — what double progression uses. */
@@ -25,6 +27,8 @@ export const useHistoryStore = create<HistoryState>()(
         set((s) => ({ logs: [...s.logs, log] }))
         return log
       },
+
+      updateLog: (id, patch) => set((s) => ({ logs: s.logs.map((l) => (l.id === id ? { ...l, ...patch } : l)) })),
 
       getLastLogForExercise: (exerciseId) => findLastExerciseLog(get().logs, exerciseId),
 
