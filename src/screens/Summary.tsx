@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useExerciseStore } from '../store/useExerciseStore'
 import { useHistoryStore } from '../store/useHistoryStore'
@@ -6,7 +7,8 @@ import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { SectionLabel } from '../components/ui/SectionLabel'
 import { ClockIcon } from '../components/ui/icons'
-import type { SessionLog, SessionLogExercise } from '../types/routine'
+import { EFFORT_OPTIONS } from '../lib/effort'
+import type { ExerciseEffort, SessionLog, SessionLogExercise } from '../types/routine'
 
 /** Router `state` received from Cooldown — matches the shape Cooldown.tsx forwards. */
 interface SummaryFlowState {
@@ -30,10 +32,13 @@ export function Summary() {
   const location = useLocation()
   const getExerciseById = useExerciseStore((s) => s.getExerciseById)
   const logs = useHistoryStore((s) => s.logs)
+  const updateLog = useHistoryStore((s) => s.updateLog)
 
   const stateLog = (location.state as SummaryFlowState | null)?.sessionLog
   // Refreshing mid-flow loses router state — fall back to the most recently written log.
-  const sessionLog = stateLog ?? logs[logs.length - 1]
+  // Read the stored copy so effort/note edits made here show up immediately.
+  const sessionLog = (stateLog && logs.find((l) => l.id === stateLog.id)) ?? stateLog ?? logs[logs.length - 1]
+  const [note, setNote] = useState(sessionLog?.note ?? '')
 
   if (!sessionLog) {
     return (
@@ -45,6 +50,19 @@ export function Summary() {
   }
 
   const totalSets = sessionLog.exercises.reduce((sum, e) => sum + e.sets.length, 0)
+
+  function setEffort(exerciseId: string, effort: ExerciseEffort) {
+    updateLog(sessionLog.id, {
+      exercises: sessionLog.exercises.map((e) =>
+        e.exerciseId === exerciseId ? { ...e, effort: e.effort === effort ? undefined : effort } : e,
+      ),
+    })
+  }
+
+  function saveNote() {
+    const trimmed = note.trim()
+    if (trimmed !== (sessionLog.note ?? '')) updateLog(sessionLog.id, { note: trimmed || undefined })
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-5 pb-3 pt-7">
@@ -75,13 +93,44 @@ export function Summary() {
             <Card key={entry.exerciseId} className="flex flex-col gap-1">
               <div className="text-[15px] font-medium">{exercise?.name ?? 'Ejercicio'}</div>
               <div className="font-mono text-sm text-text-secondary">{formatExerciseSets(entry)}</div>
+              <div className="mt-2 flex gap-2">
+                {EFFORT_OPTIONS.map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    aria-pressed={entry.effort === o.id}
+                    onClick={() => setEffort(entry.exerciseId, o.id)}
+                  >
+                    <Chip active={entry.effort === o.id}>{o.label}</Chip>
+                  </button>
+                ))}
+              </div>
             </Card>
           )
         })}
       </div>
 
+      <div className="flex flex-col gap-3">
+        <SectionLabel>NOTA (OPCIONAL)</SectionLabel>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onBlur={saveNote}
+          rows={3}
+          placeholder="Cómo dormiste, molestias, algo del equipo…"
+          className="w-full rounded-xl border border-border bg-bg-elevated-2 px-3 py-2.5 text-[14px] text-text placeholder:text-text-tertiary focus:outline-none"
+        />
+      </div>
+
       <div className="mt-auto pt-2">
-        <Button onClick={() => navigate('/')}>Volver a inicio</Button>
+        <Button
+          onClick={() => {
+            saveNote()
+            navigate('/')
+          }}
+        >
+          Volver a inicio
+        </Button>
       </div>
     </div>
   )

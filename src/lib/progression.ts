@@ -20,6 +20,10 @@ export function suggestProgression(
   routineExercise: RoutineExercise,
   lastLog: SessionLogExercise | undefined,
 ): ProgressionSuggestion {
+  // A weight set by an accepted AI analysis change wins for one session — no jump offer.
+  if (routineExercise.nextWeightKg !== undefined) {
+    return { suggestedWeightKg: routineExercise.nextWeightKg, atTopOfRange: false, increasedWeightKg: undefined }
+  }
   if (!lastLog || lastLog.sets.length === 0) {
     return {
       suggestedWeightKg: routineExercise.initialWeightKg,

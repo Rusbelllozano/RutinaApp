@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { useRotationStore } from '../store/useRotationStore'
 import { useThemeStore, type ThemeId } from '../store/useThemeStore'
@@ -37,14 +38,15 @@ const STORE_KEYS = [
   'routine-app:mode',
   'routine-app:goal',
   'routine-app:theme',
+  'routine-app:analysis',
 ] as const
 
 /**
  * Backup file format version. 1 = the original versionless bundle (six stores); 2 adds
- * mode, goal and theme. Older files import fine — the catalog/routine stores' own
+ * mode, goal and theme; 3 adds the AI analyses (docs/specs/06-ai-analysis.md). Older files import fine — the catalog/routine stores' own
  * `persist` migration fills in what they lack on reload — newer ones are refused.
  */
-const BACKUP_SCHEMA_VERSION = 2
+const BACKUP_SCHEMA_VERSION = 3
 
 /** Equipment/sound/rotation/export-import per docs/HANDOFF.md §5.7. */
 export function Settings() {
@@ -59,6 +61,7 @@ export function Settings() {
   const setTheme = useThemeStore((s) => s.setTheme)
   const mode = useModeStore((s) => s.mode)
 
+  const navigate = useNavigate()
   const [importError, setImportError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -224,6 +227,17 @@ export function Settings() {
       </Card>
 
       <GoalSettings />
+
+      <Card className="flex flex-col gap-3">
+        <SectionLabel>Análisis con IA</SectionLabel>
+        <div className="text-sm text-text-secondary">
+          Genera un texto con tus sesiones para pegarlo en ChatGPT, Claude o Gemini, y trae de vuelta sus
+          sugerencias para revisarlas una por una.
+        </div>
+        <Button variant="secondary" size="md" onClick={() => navigate('/ai-analysis')}>
+          Abrir análisis con IA
+        </Button>
+      </Card>
 
       <Card className="flex flex-col gap-3">
         <SectionLabel>Respaldo</SectionLabel>

@@ -40,6 +40,12 @@ export interface RoutineExercise {
   keepPlates?: true
   /** Display name for this routine only, overriding the catalog entry's name. */
   nameOverride?: string
+  /**
+   * One-shot working weight for the next session of this slot, overriding what double
+   * progression would suggest — set by an accepted AI analysis change
+   * (docs/specs/06-ai-analysis.md) and cleared once that session is logged.
+   */
+  nextWeightKg?: number
 }
 
 export type ProgramMode = 'base' | 'pro'
@@ -78,11 +84,19 @@ export interface LoggedSet {
   weightKg?: number
   reps?: number
   durationSec?: number
+  /** Epoch ms when the set was confirmed. */
+  completedAt?: number
+  /** Rest actually taken before this set: rest timer start → its end or skip, pauses included. */
+  restTakenSec?: number
 }
+
+/** Post-exercise effort rating — "Fácil" / "Justo" / "Al límite" in the UI. */
+export type ExerciseEffort = 'easy' | 'right' | 'limit'
 
 export interface SessionLogExercise {
   exerciseId: string
   sets: LoggedSet[]
+  effort?: ExerciseEffort
 }
 
 export interface SessionLog {
@@ -93,4 +107,8 @@ export interface SessionLog {
   exercises: SessionLogExercise[]
   isMinimalVersion: boolean
   durationMin?: number
+  /** Epoch ms when the session timer started. */
+  startedAt?: number
+  /** Free-text note from the Summary screen (sleep, pain, equipment…). */
+  note?: string
 }

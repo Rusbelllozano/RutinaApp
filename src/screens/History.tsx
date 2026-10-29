@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useExerciseStore } from '../store/useExerciseStore'
 import { useHistoryStore } from '../store/useHistoryStore'
 import { useRoutineStore } from '../store/useRoutineStore'
@@ -29,7 +30,12 @@ export function History() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-5 pb-3 pt-7">
-      <div className="text-lg font-semibold">Historial</div>
+      <div className="flex items-center justify-between">
+        <div className="text-lg font-semibold">Historial</div>
+        <Link to="/ai-analysis" className="text-sm font-medium text-accent">
+          Analizar con IA
+        </Link>
+      </div>
 
       <div className="flex rounded-full bg-bg-elevated-2 p-1">
         {TABS.map((t) => (
