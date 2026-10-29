@@ -12,7 +12,8 @@ without the app calling an LLM (no backend, no API keys, no cost, works offline)
    (4 semanas / 8 semanas / Todo, default Todo) → Copiar / Descargar (.md) / Compartir.
 2. The user pastes the prompt into an LLM chat.
 3. The LLM answers with prose, ending in one ```json block (format below).
-4. **Import**: the user pastes the whole answer → "Revisar cambios".
+4. **Import**: the user pastes the whole answer → "Revisar cambios", or taps "Subir
+   archivo" and picks the answer saved as .md / .txt / .json, which is reviewed right away.
 5. **Review**: each change shows before → after, the reason, and Aceptar / Descartar.
    Changes that don't fit the current program or equipment are shown as "No aplicable"
    with the reason and can't be applied. "Aceptar todos" applies every pending one.
@@ -83,6 +84,7 @@ Analyses persist in `routine-app:analysis` and are part of the JSON backup
       every section above and only buildable weights.
 - [ ] An answer with prose + JSON imports; one without JSON, with broken JSON or a newer
       `schemaVersion` shows a neutral message and changes nothing.
+- [ ] Uploading the answer as a .md, .txt or .json file works like pasting it.
 - [ ] Invalid changes are listed as "No aplicable" with a reason and can't be accepted.
 - [ ] Accepting a `setWeight` preloads that weight in the next session of that routine,
       once.

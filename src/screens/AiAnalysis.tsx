@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useHistoryStore } from '../store/useHistoryStore'
 import { useExerciseStore } from '../store/useExerciseStore'
 import { useRoutineStore } from '../store/useRoutineStore'
@@ -146,8 +146,9 @@ function ImportCard({ range }: { range: ExportRange }) {
   const addAnalysis = useAnalysisStore((s) => s.addAnalysis)
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  function handleReview() {
+  function review(text: string) {
     setError(null)
     try {
       const parsed = parseAiResponse(text, {
@@ -162,11 +163,23 @@ function ImportCard({ range }: { range: ExportRange }) {
     }
   }
 
+  // The content goes into the textarea too, so a parse error leaves it visible to check.
+  async function handleFile(file: File) {
+    try {
+      const content = await file.text()
+      setText(content)
+      review(content)
+    } catch {
+      setError('No se pudo leer el archivo.')
+    }
+  }
+
   return (
     <Card className="flex flex-col gap-4">
       <SectionLabel>2 · Pegar la respuesta</SectionLabel>
       <div className="text-sm text-text-secondary">
-        Pega aquí la respuesta completa de la IA. Revisarás cada cambio antes de aplicarlo.
+        Pega aquí la respuesta completa de la IA o sube el archivo (.md, .txt o .json). Revisarás cada cambio
+        antes de aplicarlo.
       </div>
       <textarea
         value={text}
@@ -175,9 +188,25 @@ function ImportCard({ range }: { range: ExportRange }) {
         placeholder="Pega la respuesta, incluido el bloque JSON del final…"
         className="w-full rounded-xl border border-border bg-bg-elevated-2 px-3 py-2.5 font-mono text-[13px] text-text placeholder:font-sans placeholder:text-text-tertiary focus:outline-none"
       />
-      <Button size="md" onClick={handleReview} disabled={text.trim() === ''}>
-        Revisar cambios
-      </Button>
+      <div className="flex gap-3">
+        <Button size="md" className="flex-1" onClick={() => review(text)} disabled={text.trim() === ''}>
+          Revisar cambios
+        </Button>
+        <Button variant="secondary" size="md" className="flex-1" onClick={() => fileInputRef.current?.click()}>
+          Subir archivo
+        </Button>
+      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".md,.markdown,.txt,.json,text/plain,text/markdown,application/json"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          e.target.value = ''
+          if (file) void handleFile(file)
+        }}
+      />
       {error && <div className="text-sm text-text-secondary">{error}</div>}
     </Card>
   )
