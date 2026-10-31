@@ -43,10 +43,11 @@ const STORE_KEYS = [
 
 /**
  * Backup file format version. 1 = the original versionless bundle (six stores); 2 adds
- * mode, goal and theme; 3 adds the AI analyses (docs/specs/06-ai-analysis.md). Older files import fine — the catalog/routine stores' own
+ * mode, goal and theme; 3 adds the AI analyses (docs/specs/06-ai-analysis.md); 4 adds exercise kinds,
+ * run/cardio entries and sessions logged after the fact (docs/specs/07-exercise-types-and-backfill.md). Older files import fine — the catalog/routine stores' own
  * `persist` migration fills in what they lack on reload — newer ones are refused.
  */
-const BACKUP_SCHEMA_VERSION = 3
+const BACKUP_SCHEMA_VERSION = 4
 
 /** Equipment/sound/rotation/export-import per docs/HANDOFF.md §5.7. */
 export function Settings() {

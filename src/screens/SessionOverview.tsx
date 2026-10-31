@@ -6,6 +6,7 @@ import { equipmentLabels } from '../lib/equipmentLabels'
 import { getRoutineColor } from '../lib/routineColor'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { Button } from '../components/ui/Button'
+import { exerciseKind, formatCardioTarget, isSingleEntryKind, kindLabels } from '../lib/exerciseKind'
 import { Chip } from '../components/ui/Chip'
 import { SessionTimerBar } from '../components/SessionTimerBar'
 
@@ -49,6 +50,8 @@ export function SessionOverview() {
           {exercises.map((re, i) => {
             const exercise = getExerciseById(re.exerciseId)
             const sets = effectiveSetsFor(re, minimal)
+            const kind = exerciseKind(exercise)
+            const singleEntry = isSingleEntryKind(kind)
             return (
               <div key={re.exerciseId} className="flex items-center gap-3 rounded-2xl bg-bg-elevated p-4">
                 <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-bg-elevated-2 font-mono text-xs text-text-secondary">
@@ -57,10 +60,12 @@ export function SessionOverview() {
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[15px] font-medium text-text">{re.nameOverride ?? exercise?.name ?? 'Ejercicio'}</div>
                   <div className="mt-0.5 text-xs text-text-secondary">
-                    {sets} series × {repsRangeLabel(re)}
+                    {singleEntry ? formatCardioTarget(re) : `${sets} series × ${repsRangeLabel(re)}`}
                   </div>
                 </div>
-                <Chip className="flex-shrink-0">{equipmentLabels[exercise?.equipmentType ?? 'bodyweight']}</Chip>
+                <Chip className="flex-shrink-0">
+                  {singleEntry ? kindLabels[kind] : equipmentLabels[exercise?.equipmentType ?? 'bodyweight']}
+                </Chip>
               </div>
             )
           })}

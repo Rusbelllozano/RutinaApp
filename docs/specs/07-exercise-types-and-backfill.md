@@ -1,7 +1,21 @@
 # Spec — Exercise types (running/cardio) + logging past sessions from the calendar
 
-Status: **planned, not built.** Decisions below were confirmed with the user on
-2026-10-31.
+Status: **built.** Decisions below were confirmed with the user on 2026-10-31.
+
+Implementation notes (where the build differs from or extends the plan below):
+
+- `Exercise.kind` is **optional**; read it through `exerciseKind()` (`src/lib/exerciseKind.ts`),
+  which derives `isometric`/`strength` for older entries. That covers stored data, old
+  backups and seeds without a seed migration, so `SEED_STORE_VERSION` is unchanged.
+- Target fields are `targetKm` / `targetMin` on `RoutineExercise` and
+  `defaultTargetKm` / `defaultTargetMin` on `Exercise`.
+- Backfilled logs (`source: 'manual'`) can be **edited and deleted** (the user asked to
+  "edit the day"); live sessions stay read-only. Screen: `src/screens/LogSession.tsx`
+  (`/log-session?date=…`, `/log-session?edit=<logId>`), reached from the calendar sheet
+  and from History.
+- There was no UI to create routines yet: the routine picker gained "+ Nueva rutina"
+  and the editor "Eliminar rutina" for custom ones, so a "Trote" routine can exist.
+- No future planning in PRO (confirmed): only today/past PRO days gained the sheet.
 
 Motivating example (the user's own): *"Yesterday, Friday, I jogged 6 km and today I
 can't add it."* Two gaps: the catalog can't describe a run (no type, no distance), and

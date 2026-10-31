@@ -7,7 +7,7 @@ import { useRotationStore } from '../store/useRotationStore'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { useSessionTimerStore, computeElapsedMs } from '../store/useSessionTimerStore'
 import { getBuildableWeights, getPlateBreakdown, clampToBuildable, describePlateBreakdown } from '../lib/plates'
-import { suggestProgression } from '../lib/progression'
+import { suggestProgression, suggestedReps } from '../lib/progression'
 import { resolveInitialLoad, withResolvedInitialWeight } from '../lib/initialLoad'
 import { getRoutineColor } from '../lib/routineColor'
 import { todayISODate, formatDurationMMSS } from '../lib/date'
@@ -22,30 +22,14 @@ import { SectionLabel } from '../components/ui/SectionLabel'
 import { PlateDiagram } from '../components/ui/PlateDiagram'
 import { PlayIcon } from '../components/ui/icons'
 import { SessionTimerBar } from '../components/SessionTimerBar'
+import { CardioEntryFields, type CardioValue } from '../components/CardioEntryFields'
+import { EffortChips } from '../components/EffortChips'
+import { exerciseKind, formatCardioEntry, formatCardioTarget, isSingleEntryKind, kindLabels } from '../lib/exerciseKind'
 import type { ExerciseEffort, LoggedSet, RoutineExercise, SessionLog, SessionLogExercise } from '../types/routine'
 
 /** Router `state` handed from Session to Cooldown — matches the shape Cooldown.tsx expects. */
 interface CooldownFlowState {
   sessionLog: SessionLog
-}
-
-/** Double progression's "+1 rep per set per week", read off the same set index last time. */
-function suggestedReps(
-  re: RoutineExercise,
-  lastLog: SessionLogExercise | undefined,
-  setIndex: number,
-  progressionAccepted: boolean,
-): number | undefined {
-  if (re.maxReps === undefined) {
-    const last = lastLog?.sets[setIndex]?.reps
-    if (last !== undefined) return last
-    const match = re.reps?.match(/\d+/)
-    return match ? Number(match[0]) : undefined
-  }
-  if (progressionAccepted) return re.minReps
-  const last = lastLog?.sets[setIndex]?.reps
-  if (last === undefined) return re.minReps
-  return Math.min(re.maxReps, last + 1)
 }
 
 function appendSetToExercise(
@@ -195,10 +179,30 @@ export function Session() {
     [routineExercise, initialLoad, lastLog],
   )
 
-  const equipmentType = exercise?.equipmentType ?? 'bodyweight'
+  const kind = exerciseKind(exercise)
+  const singleEntry = isSingleEntryKind(kind)
+  const equipmentType = singleEntry ? 'bodyweight' : (exercise?.equipmentType ?? 'bodyweight')
   const showsWeight = equipmentType !== 'bodyweight'
-  const showsDuration = routineExercise?.durationSec !== undefined
-  const showsReps = !showsDuration
+  const showsDuration = !singleEntry && routineExercise?.durationSec !== undefined
+  const showsReps = !singleEntry && !showsDuration
+
+  // Run/cardio/mobility: one km/time entry instead of sets (docs/specs/07). Pre-filled
+  // with the slot's target, else the last entry; reset when the exercise changes.
+  const lastCardio = singleEntry ? latestAnyRoutine?.entry.sets[0] : undefined
+  const cardioInitial = singleEntry
+    ? {
+        distanceKm: routineExercise?.targetKm ?? lastCardio?.distanceKm,
+        durationSec: routineExercise?.targetMin !== undefined ? routineExercise.targetMin * 60 : lastCardio?.durationSec,
+      }
+    : undefined
+  const [cardioValue, setCardioValue] = useState<CardioValue>(cardioInitial ?? {})
+  const [cardioEffort, setCardioEffort] = useState<ExerciseEffort | undefined>(undefined)
+  const [prevCardioKey, setPrevCardioKey] = useState(currentExerciseIndex)
+  if (prevCardioKey !== currentExerciseIndex) {
+    setPrevCardioKey(currentExerciseIndex)
+    setCardioValue(cardioInitial ?? {})
+    setCardioEffort(undefined)
+  }
 
   const buildableWeights = useMemo(
     () => (showsWeight ? getBuildableWeights(equipmentType, equipment) : []),
@@ -326,6 +330,7 @@ export function Session() {
       isMinimalVersion: minimal,
       durationMin,
       startedAt: timer.startedAt ?? undefined,
+      source: 'live',
     })
     // An AI-set weight applies to one session only; progression carries on from what was logged.
     const { updateRoutineExercise } = useRoutineStore.getState()
@@ -365,6 +370,30 @@ export function Session() {
     setRestEndsExercise(isLastSetOfExercise)
     setRestPaused(false)
     setRestRemaining(routineExercise!.restSec)
+  }
+
+  /** Saves the run/cardio entry for the current exercise and moves on (rest only if the slot sets one). */
+  function confirmCardio() {
+    const entry: SessionLogExercise = {
+      exerciseId: exercise!.id,
+      sets: [{ setIndex: 0, ...cardioValue, completedAt: Date.now() }],
+      effort: cardioEffort,
+    }
+    const updated = [...loggedExercises.filter((e) => e.exerciseId !== exercise!.id), entry]
+    setLoggedExercises(updated)
+    if (currentExerciseIndex + 1 >= exercisesToRun.length) {
+      finalizeSession(updated)
+      return
+    }
+    if (routineExercise!.restSec > 0) {
+      pendingAdvanceRef.current = { nextExercise: true }
+      restStartedAtRef.current = Date.now()
+      setRestEndsExercise(false)
+      setRestPaused(false)
+      setRestRemaining(routineExercise!.restSec)
+    } else {
+      setCurrentExerciseIndex((i) => i + 1)
+    }
   }
 
   function endRestTiming() {
@@ -429,10 +458,19 @@ export function Session() {
         <div className="flex flex-col gap-1.5">
           <div className="text-xl font-semibold">{routineExercise.nameOverride ?? exercise.name}</div>
           <div className="flex items-center gap-2 text-sm text-text-secondary">
-            <span>
-              {effectiveSets} series × {repsRangeLabel(routineExercise)}
-            </span>
-            <Chip>{equipmentLabels[equipmentType]}</Chip>
+            {singleEntry ? (
+              <>
+                <span>Objetivo: {formatCardioTarget(routineExercise)}</span>
+                <Chip>{kindLabels[kind]}</Chip>
+              </>
+            ) : (
+              <>
+                <span>
+                  {effectiveSets} series × {repsRangeLabel(routineExercise)}
+                </span>
+                <Chip>{equipmentLabels[equipmentType]}</Chip>
+              </>
+            )}
           </div>
           {exercise.video && (
             <a
@@ -446,7 +484,24 @@ export function Session() {
           )}
         </div>
 
-        {latestAnyRoutine && (
+        {singleEntry && lastCardio && (
+          <div className="text-sm text-text-secondary">
+            La vez pasada: {formatCardioEntry(lastCardio)}
+            {latestFromOtherRoutine ? ` (en ${latestFromOtherRoutine})` : ''}
+          </div>
+        )}
+
+        {singleEntry && restRemaining === null && (
+          <Card className="flex flex-col gap-4">
+            <CardioEntryFields key={currentExerciseIndex} kind={kind} initial={cardioInitial} onChange={setCardioValue} />
+            <div className="flex flex-col gap-2">
+              <div className="text-xs text-text-secondary">¿Cómo se sintió?</div>
+              <EffortChips value={cardioEffort} onChange={setCardioEffort} />
+            </div>
+          </Card>
+        )}
+
+        {!singleEntry && latestAnyRoutine && (
           <div className="text-sm text-text-secondary">
             La vez pasada: {latestAnyRoutine.entry.sets.length}×
             {latestAnyRoutine.entry.sets.at(-1)?.reps ?? latestAnyRoutine.entry.sets.at(-1)?.durationSec}
@@ -488,6 +543,7 @@ export function Session() {
           </div>
         )}
 
+        {!singleEntry && (
         <div className="flex flex-col gap-2">
           {Array.from({ length: effectiveSets }).map((_, i) => {
             if (i < doneCount) {
@@ -526,8 +582,9 @@ export function Session() {
             )
           })}
         </div>
+        )}
 
-        {doneCount > 0 && (
+        {!singleEntry && doneCount > 0 && (
           <button
             type="button"
             onClick={undoLastSet}
@@ -575,7 +632,9 @@ export function Session() {
         )}
 
         <div className="mt-auto pt-2">
-          {canConfirm && <Button onClick={confirmSet}>Confirmar serie</Button>}
+          {singleEntry
+            ? restRemaining === null && <Button onClick={confirmCardio}>Guardar</Button>
+            : canConfirm && <Button onClick={confirmSet}>Confirmar serie</Button>}
         </div>
       </div>
     </div>

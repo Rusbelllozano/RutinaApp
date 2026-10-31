@@ -9,7 +9,8 @@ import { Button } from '../components/ui/Button'
 import { Field } from '../components/ui/Field'
 import { Stepper } from '../components/ui/Stepper'
 import { ChevronDownIcon } from '../components/ui/icons'
-import type { EquipmentType } from '../types/routine'
+import type { EquipmentType, ExerciseKind } from '../types/routine'
+import { KIND_OPTIONS, isSingleEntryKind, parseDecimal, tracksDistance } from '../lib/exerciseKind'
 
 const equipmentOptions: { value: EquipmentType; label: string }[] = [
   { value: 'barbell', label: 'Barra' },
@@ -30,6 +31,10 @@ export function AddExercise() {
   const equipment = useSettingsStore((s) => s.equipment)
 
   const [name, setName] = useState('')
+  const [kind, setKind] = useState<ExerciseKind>('strength')
+  const [durationSec, setDurationSec] = useState(30)
+  const [targetKm, setTargetKm] = useState('')
+  const [targetMin, setTargetMin] = useState('')
   const [equipmentType, setEquipmentType] = useState<EquipmentType>('barbell')
   const [sets, setSets] = useState(3)
   const [useFreeReps, setUseFreeReps] = useState(false)
@@ -45,9 +50,13 @@ export function AddExercise() {
   const [note, setNote] = useState('')
   const [alternative, setAlternative] = useState('')
 
+  const singleEntry = isSingleEntryKind(kind)
+  // Only strength work uses bars and plates; everything else is logged as bodyweight.
+  const effectiveEquipment: EquipmentType = kind === 'strength' ? equipmentType : 'bodyweight'
+
   const weightNum = initialWeight.trim() === '' ? undefined : Number(initialWeight)
   const weightWarning =
-    weightNum !== undefined && !Number.isNaN(weightNum) && weightNum > 0 && equipmentType !== 'bodyweight'
+    weightNum !== undefined && !Number.isNaN(weightNum) && weightNum > 0 && effectiveEquipment !== 'bodyweight'
       ? (() => {
           if (isBuildable(equipmentType, weightNum, equipment)) return null
           const { below, above } = nearestBuildable(weightNum, getBuildableWeights(equipmentType, equipment))
@@ -76,19 +85,31 @@ export function AddExercise() {
     const trimmedName = name.trim()
     if (trimmedName === '') return
 
-    addExercise({
+    const common = {
       name: trimmedName,
-      equipmentType,
+      kind,
+      equipmentType: effectiveEquipment,
       muscleGroups,
-      defaultSets: sets,
-      defaultRestSec: restSec,
-      ...(useFreeReps
-        ? { defaultReps: freeReps.trim() || undefined }
-        : { defaultMinReps: minReps, defaultMaxReps: maxReps }),
       video: video.trim() || undefined,
       note: note.trim() || undefined,
       alternative: alternative.trim() || undefined,
-    })
+    }
+    if (singleEntry) {
+      const km = tracksDistance(kind) ? parseDecimal(targetKm) : undefined
+      const min = parseDecimal(targetMin)
+      addExercise({ ...common, defaultSets: 1, defaultRestSec: 0, defaultTargetKm: km, defaultTargetMin: min })
+    } else {
+      addExercise({
+        ...common,
+        defaultSets: sets,
+        defaultRestSec: restSec,
+        ...(kind === 'isometric'
+          ? { defaultDurationSec: durationSec }
+          : useFreeReps
+            ? { defaultReps: freeReps.trim() || undefined }
+            : { defaultMinReps: minReps, defaultMaxReps: maxReps }),
+      })
+    }
 
     navigate('/exercises')
   }
@@ -109,6 +130,48 @@ export function AddExercise() {
           />
         </Field>
 
+        <Field label="Tipo">
+          <div className="flex flex-wrap gap-2">
+            {KIND_OPTIONS.map((opt) => (
+              <button key={opt.id} type="button" aria-pressed={kind === opt.id} onClick={() => setKind(opt.id)}>
+                <Chip active={kind === opt.id}>{opt.label}</Chip>
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        {singleEntry ? (
+          <>
+            {tracksDistance(kind) && (
+              <Field label="Distancia objetivo (km)">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={targetKm}
+                  onChange={(e) => setTargetKm(e.target.value)}
+                  placeholder="opcional, ej. 6"
+                  className={inputClass}
+                />
+              </Field>
+            )}
+            <Field label="Duración objetivo (min)">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={targetMin}
+                onChange={(e) => setTargetMin(e.target.value)}
+                placeholder="opcional, ej. 40"
+                className={inputClass}
+              />
+            </Field>
+            <div className="text-xs text-text-tertiary">
+              En la sesión registras {tracksDistance(kind) ? 'los km, el tiempo' : 'el tiempo'} y cómo se sintió. Sin
+              sugerencias de progresión.
+            </div>
+          </>
+        ) : (
+          <>
+        {kind === 'strength' && (
         <Field label="Equipo">
           <div className="grid grid-cols-2 gap-2">
             {equipmentOptions.map((opt) => (
@@ -127,11 +190,17 @@ export function AddExercise() {
             ))}
           </div>
         </Field>
+        )}
 
         <Field label="Series">
           <Stepper value={sets} onChange={setSets} min={1} max={10} />
         </Field>
 
+        {kind === 'isometric' ? (
+          <Field label="Duración por serie">
+            <Stepper value={durationSec} onChange={setDurationSec} min={5} max={600} step={5} suffix="s" />
+          </Field>
+        ) : (
         <Field label="Repeticiones">
           <div className="flex flex-col gap-2.5">
             <div className="flex gap-2">
@@ -188,10 +257,13 @@ export function AddExercise() {
             )}
           </div>
         </Field>
+        )}
 
         <Field label="Descanso">
           <Stepper value={restSec} onChange={setRestSec} min={0} max={300} step={15} suffix="s" />
         </Field>
+          </>
+        )}
 
         <Field label="Grupos musculares">
           <div className="flex flex-col gap-2.5">
@@ -246,6 +318,7 @@ export function AddExercise() {
 
           {moreOpen && (
             <div className="flex flex-col gap-5">
+              {kind === 'strength' && (
               <Field label="Peso inicial (kg)">
                 <input
                   type="number"
@@ -263,6 +336,7 @@ export function AddExercise() {
                   </div>
                 )}
               </Field>
+              )}
 
               <Field label="Video">
                 <input

@@ -19,6 +19,7 @@ import { RoutineEditor } from './screens/RoutineEditor'
 import { SessionOverview } from './screens/SessionOverview'
 import { PlateSetup } from './screens/PlateSetup'
 import { AiAnalysis } from './screens/AiAnalysis'
+import { LogSession } from './screens/LogSession'
 
 function App() {
   const baseTheme = useThemeStore((s) => s.theme)
@@ -68,6 +69,7 @@ function App() {
           <Route path="routines" element={<RoutinePicker />} />
           <Route path="routines/:routineId/edit" element={<RoutineEditor />} />
           <Route path="ai-analysis" element={<AiAnalysis />} />
+          <Route path="log-session" element={<LogSession />} />
         </Routes>
       </div>
     </BrowserRouter>

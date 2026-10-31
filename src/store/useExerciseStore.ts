@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { seedFromProgram } from '../data/seed'
-import type { Exercise, EquipmentType } from '../types/routine'
+import type { Exercise, EquipmentType, ExerciseKind } from '../types/routine'
 import { useRoutineStore } from './useRoutineStore'
 import { SEED_STORE_VERSION, migrateExercises } from '../lib/seedMigration'
 
@@ -18,6 +18,9 @@ export interface NewExerciseInput {
   video?: string
   note?: string
   alternative?: string
+  kind?: ExerciseKind
+  defaultTargetKm?: number
+  defaultTargetMin?: number
 }
 
 interface ExerciseState {

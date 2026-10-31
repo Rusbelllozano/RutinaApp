@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRoutineStore } from '../store/useRoutineStore'
 import { useRotationStore } from '../store/useRotationStore'
@@ -24,8 +25,9 @@ const MAX_MUSCLE_GROUP_CHIPS = 3
  */
 function estimateDurationMin(routine: Routine): number {
   const SECONDS_PER_SET = 40
+  // Run/cardio slots with a target time count that time instead of the per-set guess.
   const totalSeconds = routine.exercises.reduce(
-    (sum, ex) => sum + ex.sets * (SECONDS_PER_SET + ex.restSec),
+    (sum, ex) => sum + (ex.targetMin !== undefined ? ex.targetMin * 60 : ex.sets * (SECONDS_PER_SET + ex.restSec)),
     0,
   )
   const minutes = totalSeconds / 60
@@ -44,6 +46,9 @@ export function RoutinePicker() {
   const allRoutines = useRoutineStore((s) => s.routines)
   const rotationNextId = useRotationStore((s) => s.getNextRoutineId())
   const routines = routinesForMode(allRoutines, mode)
+  const addRoutine = useRoutineStore((s) => s.addRoutine)
+  const [newName, setNewName] = useState('')
+  const [creating, setCreating] = useState(false)
   const nextRoutineId = mode === 'pro' ? proRoutineForDate(allRoutines, new Date())?.id : rotationNextId
 
   return (
@@ -107,6 +112,43 @@ export function RoutinePicker() {
             </Card>
           )
         })}
+
+        {creating ? (
+          <Card className="flex flex-col gap-3">
+            <div className="text-[15px] font-semibold text-text">Nueva rutina</div>
+            <input
+              type="text"
+              autoFocus
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="ej. Trote"
+              className="h-11 w-full rounded-xl border border-border bg-bg-elevated-2 px-3.5 text-[14px] text-text placeholder:text-text-tertiary focus:outline-none"
+            />
+            <div className="text-xs text-text-tertiary">
+              Las rutinas que creas no cambian la rotación: puedes hacerlas o registrarlas cualquier día.
+            </div>
+            <div className="flex gap-3">
+              <Button variant="secondary" size="md" className="flex-1" onClick={() => setCreating(false)}>
+                Cancelar
+              </Button>
+              <Button
+                size="md"
+                className="flex-1 disabled:opacity-40"
+                disabled={newName.trim() === ''}
+                onClick={() => {
+                  const routine = addRoutine({ name: newName.trim(), muscleGroups: [] })
+                  navigate(`/routines/${routine.id}/edit`)
+                }}
+              >
+                Crear y agregar ejercicios
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <Button variant="secondary" size="md" onClick={() => setCreating(true)}>
+            + Nueva rutina
+          </Button>
+        )}
       </div>
     </div>
   )

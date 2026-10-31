@@ -16,7 +16,8 @@ explains the data model change (`WorkoutDay` → `Routine`, exercises become a s
 catalog) that all four specs depend on. `docs/specs/05-pro-mode.md` adds a fifth: a
 switchable PRO mode (5-day Mon–Fri split, own fixed theme) that shares the exercise
 catalog and history with the default Base mode, and amends the progression-lookup and
-seeding rules of `00-overview.md`. `docs/specs/06-ai-analysis.md` adds an AI analysis round trip:
+seeding rules of `00-overview.md`. `docs/specs/07-exercise-types-and-backfill.md` adds
+exercise types (running with km) and logging sessions on past dates. `docs/specs/06-ai-analysis.md` adds an AI analysis round trip:
 export a Markdown prompt for any chat LLM, paste its JSON answer back, review each
 proposed program change (Aceptar/Descartar, undo per analysis) — no LLM calls in-app.
 
@@ -39,7 +40,10 @@ The v1 flow and the four specs in `docs/specs/01-04` are built, and so is PRO mo
 (`src/data/proProgram.ts`, `src/lib/proSchedule.ts`), loads stored as plate
 configurations (`src/lib/initialLoad.ts`), per-routine progression lookup, the cycle
 goal, and the `claro`/`pro` themes. The AI analysis round trip (`docs/specs/06-ai-analysis.md`:
-`src/lib/aiExport.ts`, `src/lib/aiImport.ts`, `src/screens/AiAnalysis.tsx`) is built too. Deload (HANDOFF §3.4) and the load ceiling
+`src/lib/aiExport.ts`, `src/lib/aiImport.ts`, `src/screens/AiAnalysis.tsx`) is built too, and so is `docs/specs/07-exercise-types-and-backfill.md`: exercise kinds
+(running/cardio logged as km + time, `src/lib/exerciseKind.ts`), creating custom routines,
+and logging/editing/deleting past sessions from the calendar (`src/screens/LogSession.tsx`;
+history is kept sorted by date, `src/lib/historyOrder.ts`). Deload (HANDOFF §3.4) and the load ceiling
 (HANDOFF §7) are still not built.
 
 ## Stack

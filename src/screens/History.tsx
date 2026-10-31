@@ -9,11 +9,13 @@ import { SectionLabel } from '../components/ui/SectionLabel'
 import { SessionExerciseSets } from '../components/SessionExerciseSets'
 import { getRoutineColor } from '../lib/routineColor'
 import { isoDateDaysAgo } from '../lib/date'
+import { exerciseKind, formatLoggedSet, tracksDistance } from '../lib/exerciseKind'
 import type { LoggedSet, SessionLog } from '../types/routine'
 
 interface ChartPoint {
   date: string
-  maxWeight: number
+  /** Heaviest set (kg), or the distance (km) for run/cardio exercises. */
+  value: number
 }
 
 type Tab = 'exercise' | 'sessions' | 'volume'
@@ -36,6 +38,13 @@ export function History() {
           Analizar con IA
         </Link>
       </div>
+
+      <Link
+        to="/log-session"
+        className="-mt-2 rounded-xl border border-border px-4 py-3 text-center text-sm font-medium text-text"
+      >
+        + Registrar sesión pasada
+      </Link>
 
       <div className="flex rounded-full bg-bg-elevated-2 p-1">
         {TABS.map((t) => (
@@ -70,13 +79,15 @@ function ByExerciseTab() {
     [activeId, getLogsForExercise],
   )
 
-  // Heaviest set of each session is the representative point for the progression line.
+  // Heaviest set of each session is the representative point for the progression line;
+  // for runs/cardio, the distance covered (spec 07).
+  const byDistance = tracksDistance(exerciseKind(selectedExercise))
   const points: ChartPoint[] = logs
     .map((l) => ({
       date: l.date,
-      maxWeight: Math.max(0, ...l.entry.sets.map((s) => s.weightKg ?? 0)),
+      value: Math.max(0, ...l.entry.sets.map((s) => (byDistance ? s.distanceKm : s.weightKg) ?? 0)),
     }))
-    .filter((p) => p.maxWeight > 0)
+    .filter((p) => p.value > 0)
 
   if (exercises.length === 0) {
     return <div className="text-text-secondary">Todavía no hay ejercicios en el catálogo.</div>
@@ -109,12 +120,12 @@ function ByExerciseTab() {
       {selectedExercise && (
         <>
           <Card className="flex flex-col gap-4">
-            <SectionLabel>Progreso de peso</SectionLabel>
+            <SectionLabel>{byDistance ? 'Distancia (km)' : 'Progreso de peso'}</SectionLabel>
             {points.length >= 2 ? (
-              <WeightChart points={points} />
+              <WeightChart points={points} label={byDistance ? 'Gráfico de distancia' : 'Gráfico de peso'} />
             ) : (
               <div className="text-sm text-text-tertiary">
-                Todavía no hay suficientes sesiones con peso registrado para graficar.
+                Todavía no hay suficientes sesiones con {byDistance ? 'distancia' : 'peso'} registrado para graficar.
               </div>
             )}
           </Card>
@@ -172,6 +183,12 @@ function SessionsTab() {
               <span>{totalSets} series</span>
               {log.durationMin != null && <span>{log.durationMin} min</span>}
               {log.isMinimalVersion && <span className="text-accent">versión mínima</span>}
+              {log.source === 'manual' && <span>registrada a posteriori</span>}
+              {log.source === 'manual' && (
+                <Link to={`/log-session?edit=${log.id}`} className="ml-auto font-medium text-accent">
+                  Editar
+                </Link>
+              )}
             </div>
 
             <div className="flex flex-col gap-3 border-t border-border pt-3">
@@ -241,19 +258,19 @@ function VolumeTab() {
 }
 
 /** Flat, muted line chart — plain inline SVG per docs/DESIGN.md, no charting library. */
-function WeightChart({ points }: { points: ChartPoint[] }) {
+function WeightChart({ points, label }: { points: ChartPoint[]; label: string }) {
   const width = 320
   const height = 140
   const padding = 10
 
-  const weights = points.map((p) => p.maxWeight)
+  const weights = points.map((p) => p.value)
   const maxW = Math.max(...weights)
   const minW = Math.min(...weights)
   const range = maxW - minW || 1
 
   const coords = points.map((p, i) => {
     const x = points.length === 1 ? width / 2 : padding + (i / (points.length - 1)) * (width - padding * 2)
-    const y = height - padding - ((p.maxWeight - minW) / range) * (height - padding * 2)
+    const y = height - padding - ((p.value - minW) / range) * (height - padding * 2)
     return { x, y }
   })
 
@@ -268,7 +285,7 @@ function WeightChart({ points }: { points: ChartPoint[] }) {
         className="w-full"
         style={{ height }}
         role="img"
-        aria-label="Gráfico de peso a lo largo del tiempo"
+        aria-label={`${label} a lo largo del tiempo`}
       >
         {gridLines.map((f) => (
           <line key={f} x1={0} x2={width} y1={height * f} y2={height * f} className="stroke-border" strokeWidth={1} />
@@ -299,12 +316,5 @@ function formatDate(iso: string): string {
 }
 
 function formatSets(sets: LoggedSet[]): string {
-  return sets
-    .map((s) => {
-      if (s.weightKg != null && s.reps != null) return `${s.weightKg}kg×${s.reps}`
-      if (s.reps != null) return `${s.reps} reps`
-      if (s.durationSec != null) return `${s.durationSec}s`
-      return '—'
-    })
-    .join(', ')
+  return sets.map(formatLoggedSet).join(', ')
 }
