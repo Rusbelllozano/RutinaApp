@@ -1,5 +1,6 @@
 import { program } from './program'
 import { proExercises, proRoutines } from './proProgram'
+import { cardioExercises, cardioRoutines } from './cardioProgram'
 import type { Exercise, Routine, RoutineExercise } from '../types/routine'
 
 function slugify(name: string): string {
@@ -19,7 +20,8 @@ interface SeedResult {
 /**
  * Derives the base exercise catalog and the 3 base routines from
  * src/data/program.ts, then appends PRO mode's extra catalog entries and its 5
- * routines from src/data/proProgram.ts. Deterministic ids (`base-<slug>`, `pro-N`) so
+ * routines from src/data/proProgram.ts, plus the running exercise and routine from
+ * src/data/cardioProgram.ts. Deterministic ids (`base-<slug>`, `pro-N`) so
  * every store that calls this independently agrees on the same ids without
  * cross-importing — see docs/specs/00-overview.md and 05-pro-mode.md.
  */
@@ -75,5 +77,8 @@ export function seedFromProgram(): SeedResult {
     }
   })
 
-  return { exercises: [...exercises, ...proExercises], routines: [...routines, ...proRoutines] }
+  return {
+    exercises: [...exercises, ...proExercises, ...cardioExercises],
+    routines: [...routines, ...proRoutines, ...cardioRoutines],
+  }
 }

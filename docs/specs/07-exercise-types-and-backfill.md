@@ -16,6 +16,10 @@ Implementation notes (where the build differs from or extends the plan below):
 - There was no UI to create routines yet: the routine picker gained "+ Nueva rutina"
   and the editor "Eliminar rutina" for custom ones, so a "Trote" routine can exist.
 - No future planning in PRO (confirmed): only today/past PRO days gained the sheet.
+- Seeded running entries (`src/data/cardioProgram.ts`, `SEED_STORE_VERSION` 2): a
+  "Trotar" catalog exercise (`kind: 'run'`, id `base-trotar`) and a one-exercise "Trote"
+  routine (`cardio-trote`, no `mode` → both modes, outside the rotation), so running
+  works without creating anything first. The session field reads "Km recorridos".
 
 Motivating example (the user's own): *"Yesterday, Friday, I jogged 6 km and today I
 can't add it."* Two gaps: the catalog can't describe a run (no type, no distance), and

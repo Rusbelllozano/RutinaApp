@@ -6,8 +6,9 @@ import type { Exercise, Routine } from '../types/routine'
  * corrections must reach users who already have those stores saved — zustand's
  * `persist` only uses initial state when nothing is stored, so without this an existing
  * user would never see the PRO routines (docs/specs/05-pro-mode.md, "Migration").
+ * v2 adds the seeded "Trotar" exercise and "Trote" routine (docs/specs/07).
  */
-export const SEED_STORE_VERSION = 1
+export const SEED_STORE_VERSION = 2
 
 /**
  * Base dumbbell loads that assumed a 2 kg handle, corrected to handle + plates

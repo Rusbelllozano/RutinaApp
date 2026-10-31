@@ -46,7 +46,7 @@ export function CardioEntryFields({ kind, initial, onChange }: Props) {
       <div className="flex items-end gap-2">
         {withDistance && (
           <label className="flex flex-1 flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-wide text-text-tertiary">Km</span>
+            <span className="text-[10px] uppercase tracking-wide text-text-tertiary">Km recorridos</span>
             <input
               type="text"
               inputMode="decimal"

@@ -32,7 +32,7 @@ describe('routinesForMode', () => {
   const all = [...routines, custom]
 
   it('shows each mode its own routines plus custom ones', () => {
-    expect(routinesForMode(all, 'base').map((r) => r.id)).toEqual(['base-a', 'base-b', 'base-c', 'x'])
-    expect(routinesForMode(all, 'pro').map((r) => r.id)).toEqual(['pro-1', 'pro-2', 'pro-3', 'pro-4', 'pro-5', 'x'])
+    expect(routinesForMode(all, 'base').map((r) => r.id)).toEqual(['base-a', 'base-b', 'base-c', 'cardio-trote', 'x'])
+    expect(routinesForMode(all, 'pro').map((r) => r.id)).toEqual(['pro-1', 'pro-2', 'pro-3', 'pro-4', 'pro-5', 'cardio-trote', 'x'])
   })
 })
