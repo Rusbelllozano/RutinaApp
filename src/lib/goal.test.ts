@@ -23,6 +23,17 @@ describe('countGoalSessions', () => {
     ]
     expect(countGoalSessions(logs, goal)).toBe(3)
   })
+
+  it('counts a jog swapped in for a training day, logged after the fact, on its own date', () => {
+    const jog: SessionLog = {
+      ...log('2026-10-30', 'custom-trote'),
+      source: 'manual',
+      exercises: [{ exerciseId: 'trote', sets: [{ setIndex: 0, distanceKm: 6, durationSec: 2280 }] }],
+    }
+    expect(countGoalSessions([log('2026-10-29', 'pro-4'), jog], goal)).toBe(2)
+    // Deleting it lowers the count — the goal reads straight from the logs.
+    expect(countGoalSessions([log('2026-10-29', 'pro-4')], goal)).toBe(1)
+  })
 })
 
 describe('weeksRemaining', () => {

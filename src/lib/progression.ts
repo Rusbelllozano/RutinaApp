@@ -47,6 +47,25 @@ export function suggestProgression(
   }
 }
 
+/** Double progression's "+1 rep per set per week", read off the same set index last time. */
+export function suggestedReps(
+  re: RoutineExercise,
+  lastLog: SessionLogExercise | undefined,
+  setIndex: number,
+  progressionAccepted: boolean,
+): number | undefined {
+  if (re.maxReps === undefined) {
+    const last = lastLog?.sets[setIndex]?.reps
+    if (last !== undefined) return last
+    const match = re.reps?.match(/\d+/)
+    return match ? Number(match[0]) : undefined
+  }
+  if (progressionAccepted) return re.minReps
+  const last = lastLog?.sets[setIndex]?.reps
+  if (last === undefined) return re.minReps
+  return Math.min(re.maxReps, last + 1)
+}
+
 export interface LastExerciseLog {
   entry: SessionLogExercise
   routineId: string

@@ -7,6 +7,7 @@ import { sortedExercises, repsRangeLabel } from './sessionRules'
 import { equipmentLabels } from './equipmentLabels'
 import { effortLabel } from './effort'
 import { toISODate } from './date'
+import { formatCardioEntry } from './exerciseKind'
 
 /** Response format version the prompt asks for — `aiImport.ts` refuses anything newer. */
 export const AI_RESPONSE_SCHEMA_VERSION = 1
@@ -153,13 +154,17 @@ ${rows.join('\n')}`
 
 function topSet(entry: SessionLogExercise) {
   return entry.sets.reduce<SessionLogExercise['sets'][number] | undefined>(
-    (best, s) => (best === undefined || (s.weightKg ?? 0) > (best.weightKg ?? 0) ? s : best),
+    (best, s) =>
+      best === undefined || (s.weightKg ?? 0) > (best.weightKg ?? 0) || (s.distanceKm ?? 0) > (best.distanceKm ?? 0)
+        ? s
+        : best,
     undefined,
   )
 }
 
 function setLabel(s: SessionLogExercise['sets'][number] | undefined): string {
   if (!s) return '—'
+  if (s.distanceKm !== undefined) return formatCardioEntry(s)
   const work = s.reps !== undefined ? `${s.reps}` : s.durationSec !== undefined ? `${s.durationSec}s` : '—'
   return s.weightKg !== undefined ? `${s.weightKg} kg × ${work}` : work
 }
@@ -214,12 +219,13 @@ function sessionsSection(logs: SessionLog[], routineById: Map<string, Routine>, 
       log.startedAt !== undefined ? `inicio ${clockTime(log.startedAt)}` : null,
       log.durationMin !== undefined ? `${log.durationMin} min` : null,
       log.isMinimalVersion ? 'sesión mínima' : null,
+      log.source === 'manual' ? 'registrada a posteriori (sin cronómetro)' : null,
     ].filter(Boolean)
     const rows = log.exercises.flatMap((e) => {
       const re = routine?.exercises.find((x) => x.exerciseId === e.exerciseId)
       return e.sets.map((s, i) => {
         const rest = s.restTakenSec !== undefined ? `${s.restTakenSec} s${re ? ` / ${re.restSec} s` : ''}` : '—'
-        return `| ${i === 0 ? nameOf(e.exerciseId) : ''} | ${s.setIndex + 1} | ${s.weightKg ?? '—'} | ${s.reps ?? (s.durationSec !== undefined ? `${s.durationSec}s` : '—')} | ${rest} | ${i === 0 && e.effort ? effortLabel(e.effort) : ''} |`
+        return `| ${i === 0 ? nameOf(e.exerciseId) : ''} | ${s.setIndex + 1} | ${s.weightKg ?? '—'} | ${s.distanceKm !== undefined ? formatCardioEntry(s) : (s.reps ?? (s.durationSec !== undefined ? `${s.durationSec}s` : '—'))} | ${rest} | ${i === 0 && e.effort ? effortLabel(e.effort) : ''} |`
       })
     })
     return `### ${log.date} — ${routine?.name ?? 'Rutina eliminada'} (\`${log.routineId}\`)${meta.length ? ` · ${meta.join(' · ')}` : ''}

@@ -13,6 +13,11 @@ interface RotationState {
    * leaves the queue untouched.
    */
   advanceAfter: (routineId: string) => void
+  /**
+   * Advances only when `routineId` is the one currently next up — the rule for sessions
+   * logged after the fact (docs/specs/07-exercise-types-and-backfill.md). Returns whether it moved.
+   */
+  advanceIfNext: (routineId: string) => boolean
   resetRotation: () => void
 }
 
@@ -35,6 +40,12 @@ export const useRotationStore = create<RotationState>()(
         const idx = order.indexOf(routineId)
         if (idx === -1) return
         set({ nextIndex: (idx + 1) % order.length })
+      },
+
+      advanceIfNext: (routineId) => {
+        if (get().getNextRoutineId() !== routineId) return false
+        get().advanceAfter(routineId)
+        return true
       },
 
       resetRotation: () => set({ order: DEFAULT_ORDER, nextIndex: 0 }),

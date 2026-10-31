@@ -13,6 +13,13 @@ import { SectionLabel } from '../components/ui/SectionLabel'
 import { Stepper } from '../components/ui/Stepper'
 import { PlusIcon, XIcon, ChevronDownIcon } from '../components/ui/icons'
 import type { Exercise, RoutineExercise } from '../types/routine'
+import { exerciseKind, formatKm, isSingleEntryKind, kindLabels, parseDecimal, tracksDistance } from '../lib/exerciseKind'
+
+/** Subtitle for an exercise in lists: "Barra" for strength, the kind otherwise. */
+function exerciseSubtitle(exercise: Exercise | undefined): string {
+  const kind = exerciseKind(exercise)
+  return kind === 'strength' ? equipmentLabels[exercise?.equipmentType ?? 'bodyweight'] : kindLabels[kind]
+}
 
 const inputClass =
   'h-11 w-full rounded-xl border border-border bg-bg-elevated-2 px-3.5 text-[14px] text-text placeholder:text-text-tertiary focus:outline-none'
@@ -40,7 +47,10 @@ function RoutineExerciseRow({ routineId, re, exercise, isFirst, isLast }: RowPro
       ? resolveInitialLoad(routine, re, (id) => getExerciseById(id)?.equipmentType, equipment).weightKg
       : undefined
 
+  const kind = exerciseKind(exercise)
   const [repsText, setRepsText] = useState(re.reps ?? '')
+  const [kmText, setKmText] = useState(re.targetKm !== undefined ? formatKm(re.targetKm) : '')
+  const [minText, setMinText] = useState(re.targetMin !== undefined ? formatKm(re.targetMin) : '')
   const [weightText, setWeightText] = useState(re.initialWeightKg?.toString() ?? '')
 
   function patch(p: Partial<RoutineExercise>) {
@@ -63,9 +73,7 @@ function RoutineExerciseRow({ routineId, re, exercise, isFirst, isLast }: RowPro
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="truncate text-[15px] font-medium text-text">{re.nameOverride ?? exercise?.name ?? 'Ejercicio'}</div>
-          <div className="mt-0.5 text-xs text-text-secondary">
-            {equipmentLabels[exercise?.equipmentType ?? 'bodyweight']}
-          </div>
+          <div className="mt-0.5 text-xs text-text-secondary">{exerciseSubtitle(exercise)}</div>
         </div>
         <div className="flex flex-shrink-0 items-center gap-1">
           <button
@@ -97,6 +105,39 @@ function RoutineExerciseRow({ routineId, re, exercise, isFirst, isLast }: RowPro
         </div>
       </div>
 
+      {isSingleEntryKind(kind) ? (
+        <div className="grid grid-cols-2 gap-3">
+          {tracksDistance(kind) && (
+            <Field label="Km objetivo">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={kmText}
+                onChange={(e) => {
+                  setKmText(e.target.value)
+                  patch({ targetKm: parseDecimal(e.target.value) })
+                }}
+                placeholder="opcional"
+                className={inputClass}
+              />
+            </Field>
+          )}
+          <Field label="Minutos objetivo">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={minText}
+              onChange={(e) => {
+                setMinText(e.target.value)
+                patch({ targetMin: parseDecimal(e.target.value) })
+              }}
+              placeholder="opcional"
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      ) : (
+      <>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Series">
           <Stepper value={re.sets} onChange={(v) => patch({ sets: v })} min={1} max={10} />
@@ -180,6 +221,8 @@ function RoutineExerciseRow({ routineId, re, exercise, isFirst, isLast }: RowPro
           />
         </Field>
       )}
+      </>
+      )}
     </div>
   )
 }
@@ -219,7 +262,7 @@ function AddExerciseSheet({
             >
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[14px] font-medium text-text">{exercise.name}</div>
-                <div className="text-xs text-text-secondary">{equipmentLabels[exercise.equipmentType]}</div>
+                <div className="text-xs text-text-secondary">{exerciseSubtitle(exercise)}</div>
               </div>
               <PlusIcon width={18} height={18} className="flex-shrink-0 text-accent" />
             </button>
@@ -238,6 +281,7 @@ export function RoutineEditor() {
   const exercises = useExerciseStore((s) => s.exercises)
   const getExerciseById = useExerciseStore((s) => s.getExerciseById)
   const addExerciseToRoutine = useRoutineStore((s) => s.addExerciseToRoutine)
+  const deleteRoutine = useRoutineStore((s) => s.deleteRoutine)
   const [addSheetOpen, setAddSheetOpen] = useState(false)
 
   if (!routine) {
@@ -264,6 +308,8 @@ export function RoutineEditor() {
       reps: exercise.defaultReps,
       durationSec: exercise.defaultDurationSec,
       restSec: exercise.defaultRestSec,
+      targetKm: exercise.defaultTargetKm,
+      targetMin: exercise.defaultTargetMin,
     })
     setAddSheetOpen(false)
   }
@@ -294,6 +340,21 @@ export function RoutineEditor() {
             isLast={i === sorted.length - 1}
           />
         ))}
+
+        {routine.source === 'custom' && (
+          <Button
+            variant="ghost"
+            size="md"
+            className="mt-2"
+            onClick={() => {
+              if (!window.confirm(`¿Eliminar la rutina "${routine.name}"? Tu historial no se borra.`)) return
+              deleteRoutine(routine.id)
+              navigate('/routines')
+            }}
+          >
+            Eliminar rutina
+          </Button>
+        )}
       </div>
 
       <button

@@ -8,6 +8,7 @@ import { Chip } from '../components/ui/Chip'
 import { SectionLabel } from '../components/ui/SectionLabel'
 import { ClockIcon } from '../components/ui/icons'
 import { EFFORT_OPTIONS } from '../lib/effort'
+import { formatLoggedSet } from '../lib/exerciseKind'
 import type { ExerciseEffort, SessionLog, SessionLogExercise } from '../types/routine'
 
 /** Router `state` received from Cooldown — matches the shape Cooldown.tsx forwards. */
@@ -16,14 +17,7 @@ interface SummaryFlowState {
 }
 
 function formatExerciseSets(entry: SessionLogExercise): string {
-  return entry.sets
-    .map((s) => {
-      if (s.weightKg !== undefined && s.reps !== undefined) return `${s.weightKg}kg×${s.reps}`
-      if (s.reps !== undefined) return `${s.reps} reps`
-      if (s.durationSec !== undefined) return `${s.durationSec}s`
-      return '—'
-    })
-    .join(', ')
+  return entry.sets.map(formatLoggedSet).join(', ')
 }
 
 /** Post-session recap — docs/HANDOFF.md §5's summary step. Reads the SessionLog just written to history. */

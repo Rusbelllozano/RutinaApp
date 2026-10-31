@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useCalendarStore } from '../store/useCalendarStore'
 import { useHistoryStore } from '../store/useHistoryStore'
 import { useRoutineStore } from '../store/useRoutineStore'
@@ -54,7 +54,7 @@ function buildMonthGrid(year: number, month: number): (DayCell | null)[] {
 }
 
 type DayStatus =
-  | { kind: 'done'; log: SessionLog }
+  | { kind: 'done'; logs: SessionLog[] }
   | { kind: 'planned'; entry: ScheduledRoutine }
   | { kind: 'rest'; entry: ScheduledRoutine }
   /** PRO only: today/future weekday, filled from the weekly schedule — read-only. */
@@ -86,9 +86,12 @@ export function Calendar() {
   const getRoutineById = useRoutineStore((s) => s.getRoutineById)
   const getExerciseById = useExerciseStore((s) => s.getExerciseById)
 
+  const navigate = useNavigate()
+
+  // Several sessions can share a date (spec 07), kept in the order they were logged.
   const logsByDate = useMemo(() => {
-    const map = new Map<string, SessionLog>()
-    for (const log of logs) map.set(log.date, log)
+    const map = new Map<string, SessionLog[]>()
+    for (const log of logs) map.set(log.date, [...(map.get(log.date) ?? []), log])
     return map
   }, [logs])
 
@@ -100,8 +103,8 @@ export function Calendar() {
 
   function getDayStatus(iso: string, date: Date): DayStatus {
     // History is shared, so past sessions from either mode always show.
-    const log = logsByDate.get(iso)
-    if (log) return { kind: 'done', log }
+    const dayLogs = logsByDate.get(iso)
+    if (dayLogs) return { kind: 'done', logs: dayLogs }
     // PRO: the date decides the routine (docs/specs/05-pro-mode.md, "Calendar in PRO") —
     // no manual planning, and Base's planned entries aren't shown. A past weekday with
     // no session is just blank, never "missed".
@@ -135,12 +138,13 @@ export function Calendar() {
     setViewMonth(next.getMonth())
   }
 
-  /** Only logged days open a sheet in PRO; in Base, any day except a blank past one. */
-  function isDayTappable(iso: string, status: DayStatus): boolean {
-    if (isPro) return status.kind === 'done'
-    // A blank day before today has no data and nothing to plan retroactively —
-    // rendered the same as any other blank day, just not tappable.
-    return !(status.kind === 'blank' && iso < TODAY_ISO)
+  /**
+   * Today and every past day open a sheet — to see what was logged or to log a session
+   * done earlier (spec 07). Future days open only in Base, for planning; PRO's future is
+   * read-only (spec 05).
+   */
+  function isDayTappable(iso: string): boolean {
+    return iso <= TODAY_ISO || !isPro
   }
 
   const sheetStatus = sheetDate ? getDayStatus(sheetDate, parseISODate(sheetDate)) : null
@@ -185,11 +189,11 @@ export function Calendar() {
             const status = getDayStatus(cell.iso, cell.date)
             const isToday = cell.iso === TODAY_ISO
             const isPast = cell.iso < TODAY_ISO
-            const isTappable = isDayTappable(cell.iso, status)
+            const isTappable = isDayTappable(cell.iso)
 
             const routineId =
               status.kind === 'done'
-                ? status.log.routineId
+                ? status.logs[0].routineId
                 : status.kind === 'planned'
                   ? status.entry.routineId
                   : status.kind === 'auto'
@@ -219,7 +223,16 @@ export function Calendar() {
                 } ${!isTappable ? 'cursor-default' : ''}`}
               >
                 {cell.date.getDate()}
-                {status.kind === 'done' && <CheckIcon width={10} height={10} className="absolute bottom-1" />}
+                {status.kind === 'done' &&
+                  (status.logs.length > 1 ? (
+                    <span className="absolute bottom-1 flex gap-0.5" aria-label={`${status.logs.length} sesiones`}>
+                      {status.logs.slice(0, 3).map((l) => (
+                        <span key={l.id} className="h-1 w-1 rounded-full bg-bg" />
+                      ))}
+                    </span>
+                  ) : (
+                    <CheckIcon width={10} height={10} className="absolute bottom-1" />
+                  ))}
               </button>
             )
           })}
@@ -275,27 +288,48 @@ export function Calendar() {
               </button>
             </div>
 
-            {sheetStatus.kind === 'done' ? (
-              <DoneSheet log={sheetStatus.log} getRoutineById={getRoutineById} getExerciseById={getExerciseById} />
-            ) : sheetStatus.kind === 'auto' || sheetStatus.kind === 'autoRest' ? null : (
-              <PlanSheet
-                iso={sheetDate}
-                status={sheetStatus}
-                routines={routines}
-                onPlan={(routineId) => {
-                  planRoutine(sheetDate, routineId)
-                  setSheetDate(null)
-                }}
-                onRest={() => {
-                  markRest(sheetDate)
-                  setSheetDate(null)
-                }}
-                onClear={() => {
-                  clearDate(sheetDate)
-                  setSheetDate(null)
-                }}
-              />
-            )}
+            <div className="flex flex-col gap-5">
+              {sheetStatus.kind === 'done' &&
+                sheetStatus.logs.map((log) => (
+                  <DoneSheet
+                    key={log.id}
+                    log={log}
+                    getRoutineById={getRoutineById}
+                    getExerciseById={getExerciseById}
+                    onEdit={() => navigate(`/log-session?edit=${log.id}`)}
+                  />
+                ))}
+
+              {sheetDate <= TODAY_ISO && (
+                <Button
+                  variant={sheetStatus.kind === 'done' ? 'secondary' : 'primary'}
+                  size="md"
+                  onClick={() => navigate(`/log-session?date=${sheetDate}`)}
+                >
+                  {sheetStatus.kind === 'done' ? '+ Registrar otra sesión' : 'Registrar sesión hecha'}
+                </Button>
+              )}
+
+              {!isPro && sheetStatus.kind !== 'done' && (sheetDate >= TODAY_ISO || sheetStatus.kind !== 'blank') && (
+                <PlanSheet
+                  iso={sheetDate}
+                  status={sheetStatus as Extract<DayStatus, { kind: 'planned' | 'rest' | 'blank' }>}
+                  routines={routines}
+                  onPlan={(routineId) => {
+                    planRoutine(sheetDate, routineId)
+                    setSheetDate(null)
+                  }}
+                  onRest={() => {
+                    markRest(sheetDate)
+                    setSheetDate(null)
+                  }}
+                  onClear={() => {
+                    clearDate(sheetDate)
+                    setSheetDate(null)
+                  }}
+                />
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -307,10 +341,14 @@ interface DoneSheetProps {
   log: SessionLog
   getRoutineById: (id: string) => { name: string } | undefined
   getExerciseById: (id: string) => { name: string } | undefined
+  onEdit: () => void
 }
 
-/** Read-only detail for a logged day — history editing from the calendar is out of scope. */
-function DoneSheet({ log, getRoutineById, getExerciseById }: DoneSheetProps) {
+/**
+ * Detail of one logged session. Live sessions are read-only; ones logged after the fact
+ * (`source: 'manual'`) can be edited or deleted (spec 07).
+ */
+function DoneSheet({ log, getRoutineById, getExerciseById, onEdit }: DoneSheetProps) {
   const routineName = getRoutineById(log.routineId)?.name ?? 'Rutina'
   return (
     <div className="flex flex-col gap-4">
@@ -321,10 +359,17 @@ function DoneSheet({ log, getRoutineById, getExerciseById }: DoneSheetProps) {
             Versión mínima
           </span>
         )}
+        {log.source === 'manual' && (
+          <button type="button" onClick={onEdit} className="ml-auto text-sm font-medium text-accent">
+            Editar
+          </button>
+        )}
       </div>
+      {log.source === 'manual' && <div className="-mt-3 text-[12px] text-text-tertiary">Registrada a posteriori</div>}
       {log.durationMin != null && (
         <div className="text-[13px] text-text-secondary">Duración: {log.durationMin} min</div>
       )}
+      {log.note && <div className="text-[13px] text-text-secondary">{log.note}</div>}
       <div className="flex flex-col gap-3">
         {log.exercises.map((ex) => (
           <SessionExerciseSets

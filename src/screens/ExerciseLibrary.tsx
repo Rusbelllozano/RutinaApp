@@ -5,7 +5,8 @@ import { equipmentLabels } from '../lib/equipmentLabels'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { Chip } from '../components/ui/Chip'
 import { PlusIcon, SearchIcon, XIcon } from '../components/ui/icons'
-import type { EquipmentType } from '../types/routine'
+import type { EquipmentType, ExerciseKind } from '../types/routine'
+import { KIND_OPTIONS, exerciseKind, kindLabels } from '../lib/exerciseKind'
 
 const equipmentFilters: { value: EquipmentType | 'all'; label: string }[] = [
   { value: 'all', label: 'Todos' },
@@ -22,14 +23,16 @@ export function ExerciseLibrary() {
   const deleteExercise = useExerciseStore((s) => s.deleteExercise)
   const [query, setQuery] = useState('')
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentType | 'all'>('all')
+  const [kindFilter, setKindFilter] = useState<ExerciseKind | 'all'>('all')
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return exercises
+      .filter((e) => kindFilter === 'all' || exerciseKind(e) === kindFilter)
       .filter((e) => equipmentFilter === 'all' || e.equipmentType === equipmentFilter)
       .filter((e) => q === '' || e.name.toLowerCase().includes(q))
       .sort((a, b) => a.name.localeCompare(b.name, 'es'))
-  }, [exercises, query, equipmentFilter])
+  }, [exercises, query, equipmentFilter, kindFilter])
 
   function handleDelete(id: string, name: string) {
     if (!window.confirm(`¿Eliminar "${name}" del catálogo? Se quitará de las rutinas que lo usen.`)) return
@@ -57,12 +60,22 @@ export function ExerciseLibrary() {
         </div>
 
         <div className="flex flex-shrink-0 flex-wrap gap-2">
+          {[{ id: 'all' as const, label: 'Todos los tipos' }, ...KIND_OPTIONS].map((f) => (
+            <button key={f.id} type="button" onClick={() => setKindFilter(f.id)}>
+              <Chip active={kindFilter === f.id}>{f.label}</Chip>
+            </button>
+          ))}
+        </div>
+
+        {(kindFilter === 'all' || kindFilter === 'strength') && (
+        <div className="flex flex-shrink-0 flex-wrap gap-2">
           {equipmentFilters.map((f) => (
             <button key={f.value} type="button" onClick={() => setEquipmentFilter(f.value)}>
               <Chip active={equipmentFilter === f.value}>{f.label}</Chip>
             </button>
           ))}
         </div>
+        )}
 
         <div className="flex flex-col gap-2">
           {filtered.length === 0 && (
@@ -73,7 +86,8 @@ export function ExerciseLibrary() {
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[15px] font-medium text-text">{exercise.name}</div>
                 <div className="mt-0.5 truncate text-xs text-text-secondary">
-                  {equipmentLabels[exercise.equipmentType]}
+                  {kindLabels[exerciseKind(exercise)]}
+                  {exerciseKind(exercise) === 'strength' ? ` · ${equipmentLabels[exercise.equipmentType]}` : ''}
                   {exercise.muscleGroups.length > 0 ? ` · ${exercise.muscleGroups.join(', ')}` : ''}
                 </div>
               </div>
