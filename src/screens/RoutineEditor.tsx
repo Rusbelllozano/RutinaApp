@@ -108,7 +108,7 @@ function RoutineExerciseRow({ routineId, re, exercise, isFirst, isLast }: RowPro
       {isSingleEntryKind(kind) ? (
         <div className="grid grid-cols-2 gap-3">
           {tracksDistance(kind) && (
-            <Field label="Km objetivo">
+            <Field label="Kilometraje objetivo">
               <input
                 type="text"
                 inputMode="decimal"

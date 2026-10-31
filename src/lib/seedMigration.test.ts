@@ -24,8 +24,8 @@ describe('migrateRoutines', () => {
   const pushDay = migrated.find((r) => r.id === 'base-a')!
   const weightOf = (id: string) => pushDay.exercises.find((e) => e.exerciseId === id)?.initialWeightKg
 
-  it('adds the PRO week without touching or duplicating existing routines', () => {
-    expect(migrated.map((r) => r.id)).toEqual(['base-a', 'base-b', 'base-c', 'pro-1', 'pro-2', 'pro-3', 'pro-4', 'pro-5'])
+  it('adds the PRO week and the Trote routine without touching or duplicating existing routines', () => {
+    expect(migrated.map((r) => r.id)).toEqual(['base-a', 'base-b', 'base-c', 'pro-1', 'pro-2', 'pro-3', 'pro-4', 'pro-5', 'cardio-trote'])
   })
 
   it('tags Base routines and corrects only untouched old dumbbell weights', () => {
@@ -55,5 +55,14 @@ describe('migrateExercises', () => {
     expect(migrated.some((e) => e.id === 'base-press-de-pecho-en-piso-con-barra')).toBe(true)
     expect(migrated.find((e) => e.id === 'base-elevaciones-laterales')?.alternative).toContain('~1.5 kg')
     expect(new Set(migrated.map((e) => e.id)).size).toBe(migrated.length)
+  })
+})
+
+describe('Trotar seed (spec 07)', () => {
+  it('adds the running exercise to an existing catalog, once', () => {
+    const once = migrateExercises([])
+    const trotar = once.find((e) => e.id === 'base-trotar')
+    expect(trotar?.kind).toBe('run')
+    expect(migrateExercises(once).filter((e) => e.id === 'base-trotar')).toHaveLength(1)
   })
 })

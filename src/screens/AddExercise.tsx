@@ -143,7 +143,7 @@ export function AddExercise() {
         {singleEntry ? (
           <>
             {tracksDistance(kind) && (
-              <Field label="Distancia objetivo (km)">
+              <Field label="Kilometraje objetivo (km)">
                 <input
                   type="text"
                   inputMode="decimal"
