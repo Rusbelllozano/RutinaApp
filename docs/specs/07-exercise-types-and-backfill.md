@@ -108,9 +108,8 @@ append order. Backfilling Friday after Saturday's session breaks that. Fix:
 2. Sheet "Registrar sesión hecha" → routine list (same list as the routine picker,
    both modes, grouped Base / PRO / Mis rutinas).
 3. Pre-filled log form → "Guardar". Toast: "Sesión del viernes 30 registrada".
-4. Tapping a Done day lists its sessions; each opens the read-only detail, plus a
-   "Registrar otra sesión" button. (Editing/deleting a backfilled log: optional
-   stretch, see open questions.)
+4. Tapping a Done day lists its sessions; each opens the detail (with "Borrar sesión"
+   for backfilled ones), plus a "Registrar otra sesión" button.
 
 Also reachable from History ("+ Registrar sesión pasada") with a date picker defaulting
 to yesterday, since that's the typical case.
@@ -127,16 +126,39 @@ to yesterday, since that's the typical case.
       as the progression baseline.
 - [ ] Existing data (exercises without `kind`, unsorted/legacy logs, old backups)
       migrates without loss; strength flows behave exactly as before.
+- [ ] A backfilled session can be deleted after confirming; it disappears from the
+      calendar, History, progression and the goal count; the rotation is not touched.
+- [ ] A jog logged on a PRO weekday inside the goal range counts toward the cycle goal
+      (max one per date, as today).
 - [ ] No weight/plate UI on cardio/mobility exercises; no progression suggestions for
       them.
 
-## Open questions (not blocking)
+## Deleting a logged session (confirmed)
 
-- Should a backfilled log be editable/deletable afterwards? (Spec 03 lists history
-  editing as out of scope; backfill makes typos more likely.) Proposal: allow
-  delete-only for `source: 'manual'` logs.
-- Should runs count toward the PRO cycle goal (`src/lib/goal.ts`)? Proposal: no —
-  the goal is about the PRO strength week.
+- Any **backfilled** log (`source: 'manual'`) can be deleted from its detail sheet
+  (calendar day or History): "Borrar sesión" → confirm dialog "¿Borrar la sesión del
+  viernes 30? Esto no se puede deshacer." → removed from `useHistoryStore`.
+- Live sessions stay read-only (spec 03's "no history editing" still holds for them).
+- Deleting **never rewinds the rotation**. If the deleted log had advanced the queue,
+  the user fixes it with the existing reset/rotation controls in Settings — rewinding
+  automatically would be wrong whenever later sessions were logged on top.
+- Progression, "La vez pasada", charts, the cycle goal and the AI export read straight
+  from `logs`, so they update on their own; nothing else stores a copy.
+- New store action `deleteLog(id)`, guarded to `source === 'manual'`.
+
+## Cycle goal (confirmed: runs count)
+
+The user may swap a training day for a jog, so a run session counts toward the PRO
+cycle goal. `countGoalSessions` (`src/lib/goal.ts`) already counts **any** logged
+session in range, any routine, max one per date — so no logic change is needed, only:
+
+- a test in `goal.test.ts` pinning that a custom cardio-only routine counts, and that a
+  backfilled log counts for its own date (not the day it was entered);
+- deleting a backfilled log lowers the count accordingly.
+
+The PRO calendar today only opens sheets on logged days; it must also open on blank
+**past and today** cells to offer "Registrar sesión hecha" (future PRO days stay
+read-only, per spec 05).
 
 ## Build order
 
@@ -144,5 +166,6 @@ to yesterday, since that's the typical case.
 2. History store sorted insert + `getLogsForDate` + progression tests.
 3. AddExercise / library type field and filters.
 4. Session mode cardio card + Summary/History rendering + km chart.
-5. Calendar backfill sheet + pre-filled form + `advanceIfNext`.
+5. Calendar backfill sheet (Base and PRO) + pre-filled form + `advanceIfNext` +
+   `deleteLog` with confirm, goal tests.
 6. Backup schema bump, AI export wording, HANDOFF/CLAUDE.md status update.
